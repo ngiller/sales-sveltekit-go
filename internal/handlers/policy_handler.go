@@ -110,3 +110,55 @@ func (h *PolicyHandler) Delete(c *fiber.Ctx) error {
 
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{"message": "Policy successfully deleted"})
 }
+
+func (h *PolicyHandler) CopyFromGroup(c *fiber.Ctx) error {
+	var req struct {
+		FromGroupID uint `json:"from_group_id"`
+		ToGroupID   uint `json:"to_group_id"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	}
+
+	if req.FromGroupID == 0 || req.ToGroupID == 0 {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "from_group_id and to_group_id are required")
+	}
+
+	if req.FromGroupID == req.ToGroupID {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Cannot copy policies to the same role")
+	}
+
+	sourcePolicies, err := h.repo.FindByGroupID(req.FromGroupID)
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to fetch source policies")
+	}
+
+	if err := h.repo.DeleteByGroupID(req.ToGroupID); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to clear existing policies")
+	}
+
+	newPolicies := make([]models.GroupPolicy, 0, len(sourcePolicies))
+	for _, p := range sourcePolicies {
+		newPolicies = append(newPolicies, models.GroupPolicy{
+			GroupID:         req.ToGroupID,
+			TargetTableName: p.TargetTableName,
+			TableID:         p.TableID,
+			Action:          p.Action,
+		})
+	}
+
+	if err := h.repo.BulkCreate(newPolicies); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to copy policies")
+	}
+
+	copiedPolicies, err := h.repo.FindByGroupID(req.ToGroupID)
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve copied policies")
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+		"message":  "Policies copied successfully",
+		"policies": copiedPolicies,
+	})
+}

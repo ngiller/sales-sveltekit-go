@@ -59,6 +59,17 @@ func (r *PolicyRepository) FindByGroupIDAndTableAccessID(groupID uint, tableAcce
 	return &policies[0], nil
 }
 
+func (r *PolicyRepository) DeleteByGroupID(groupID uint) error {
+	return r.db.Where("group_id = ?", groupID).Delete(&models.GroupPolicy{}).Error
+}
+
+func (r *PolicyRepository) BulkCreate(policies []models.GroupPolicy) error {
+	if len(policies) == 0 {
+		return nil
+	}
+	return r.db.CreateInBatches(policies, 100).Error
+}
+
 func (r *PolicyRepository) FindByGroupIDWithTree(groupID uint) ([]models.MenuItem, error) {
 	//return r.FindAllForTree(groupID)
 	return nil, nil

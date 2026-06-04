@@ -73,6 +73,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler,
 	policyGrp.Get("/group/:groupID", middleware.RequirePolicy(db, "read"), policyHandler.FindByGroupID)
 	policyGrp.Post("/", middleware.RequirePolicy(db, "create"), policyHandler.Create)
 	policyGrp.Put("/:id", middleware.RequirePolicy(db, "update"), policyHandler.Update)
+	policyGrp.Post("/copy", middleware.RequirePolicy(db, "create"), policyHandler.CopyFromGroup)
 	policyGrp.Delete("/:id", middleware.RequirePolicy(db, "delete"), policyHandler.Delete)
 
 	// Departements Routes with Role Policies
