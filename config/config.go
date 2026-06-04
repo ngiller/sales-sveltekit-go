@@ -1,0 +1,160 @@
+package config
+
+import (
+	"fmt"
+	"log"
+	"os"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+)
+
+type Config struct {
+	DBHost      string
+	DBPort      string
+	DBUser      string
+	DBPassword  string
+	DBName      string
+	DBStockName string
+	JWTSecret   string
+}
+
+var AppConfig *Config
+
+func InitConfig() {
+	AppConfig = &Config{
+		DBHost:      getEnv("DB_HOST", "localhost"),
+		DBPort:      getEnv("DB_PORT", "3306"),
+		DBUser:      getEnv("DB_USER", "root"),
+		DBPassword:  getEnv("DB_PASSWORD", "Pass@w0rd"),
+		DBName:      getEnv("DB_NAME", "magnum_sales_svelte_go"),
+		DBStockName: getEnv("DB_STOCK_NAME", "magnum_stock_db"),
+		JWTSecret:   getEnv("JWT_SECRET", "magnum_secret_key_2024"),
+	}
+}
+
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+var DB *gorm.DB
+var StockDB *gorm.DB
+
+func InitDB() *gorm.DB {
+	InitConfig()
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?collation=utf8mb4_general_ci&parseTime=True&loc=Local",
+		AppConfig.DBUser,
+		AppConfig.DBPassword,
+		AppConfig.DBHost,
+		AppConfig.DBPort,
+		AppConfig.DBName,
+	)
+
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		log.Fatalf("Failed to connect to sales database: %v", err)
+	}
+
+	setupDBPool(db)
+	DB = db
+	return db
+}
+
+func InitStockDB() *gorm.DB {
+	if AppConfig == nil {
+		InitConfig()
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?collation=utf8mb4_general_ci&parseTime=True&loc=Local",
+		AppConfig.DBUser,
+		AppConfig.DBPassword,
+		AppConfig.DBHost,
+		AppConfig.DBPort,
+		AppConfig.DBStockName,
+	)
+
+	db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		log.Fatalf("Failed to connect to stock database: %v", err)
+	}
+
+	setupDBPool(db)
+	StockDB = db
+	return db
+}
+
+func setupDBPool(db *gorm.DB) {
+	sqlDB, err := db.DB()
+	if err != nil {
+		log.Fatalf("Failed to get database instance: %v", err)
+	}
+
+	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(100)
+	sqlDB.SetConnMaxLifetime(time.Hour)
+}
+
+func ErrorHandler(c *fiber.Ctx, err error) error {
+	code := fiber.StatusInternalServerError
+	if e, ok := err.(*fiber.Error); ok {
+		code = e.Code
+	}
+	return c.Status(code).JSON(fiber.Map{
+		"message": err.Error(),
+	})
+}
+
+func HashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	return string(bytes), err
+}
+
+func CheckPassword(hash, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	return err == nil
+}
+
+func GenerateJWT(userID int64, email string, inisial string) (string, error) {
+	claims := jwt.MapClaims{
+		"user_id": userID,
+		"email":   email,
+		"inisial": inisial,
+		"exp":     time.Now().Add(time.Hour * 24).Unix(),
+		"iat":     time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(AppConfig.JWTSecret))
+}
+
+func ValidateJWT(tokenString string) (jwt.MapClaims, error) {
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(AppConfig.JWTSecret), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token")
+}

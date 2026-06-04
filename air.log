@@ -1,0 +1,49 @@
+[warning] build.bin is deprecated; set build.entrypoint instead
+
+  __    _   ___  
+ / /\  | | | |_) 
+/_/--\ |_| |_| \_ v1.65.2, built with Go go1.26.3
+
+mkdir /home/giller/Projects/sales.magnumsolusion.co.id/svelte-go-new/backend/tmp
+watching .
+watching bin
+watching cmd
+watching cmd/server
+watching cmd/tmp
+watching config
+watching internal
+watching internal/handlers
+watching internal/middleware
+watching internal/models
+watching internal/repository
+watching internal/routes
+watching internal/utils
+watching scratch
+watching scripts
+!exclude tmp
+watching uploads
+watching uploads/avatars
+watching uploads/po_files
+watching uploads/signatures
+building...
+running...
+2026/05/21 14:58:21 Manual database migrations completed successfully
+2026/05/21 14:58:21 Server starting on port 8080
+
+ ┌───────────────────────────────────────────────────┐ 
+ │                   Fiber v2.50.0                   │ 
+ │               http://127.0.0.1:8080               │ 
+ │       (bound on host 0.0.0.0 and port 8080)       │ 
+ │                                                   │ 
+ │ Handlers ........... 283  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID ............. 70862 │ 
+ └───────────────────────────────────────────────────┘ 
+
+internal/handlers/auth_handler.go has changed
+building...
+running...
+/bin/sh: 1: tmp/main: not found
+Process Exit with Code: 127
+cleaning...
+deleting /home/giller/Projects/sales.magnumsolusion.co.id/svelte-go-new/backend/tmp
+see you again~

@@ -1,0 +1,481 @@
+-- ================================================================
+-- SQL ALTER TABLE untuk menyelaraskan struktur magnum_sales
+-- dengan magnum_sales_svelte_go tanpa kehilangan data
+-- ================================================================
+-- Database sumber: magnum_sales_svelte_go (1).sql
+-- Database target: magnum_sales (1).sql
+-- ================================================================
+
+-- ================================================================
+-- BAGIAN 1: MODIFY/ADD COLUMN pada tabel yang sudah ada
+-- ================================================================
+
+-- ALTER TABLE `counter_id`
+--   MODIFY COLUMN `counter_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+--   MODIFY COLUMN `ym` varchar(6) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+-- ALTER TABLE `currency`
+--   MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+-- ALTER TABLE `customer`
+--   MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+--   MODIFY COLUMN `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+--   MODIFY COLUMN `phone` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `npwp` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `contact` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+--   MODIFY COLUMN `allow_to_vendor` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '1';
+
+-- ALTER TABLE `customer_category`
+--   MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+-- ALTER TABLE `customer_contact`
+--   MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+--   MODIFY COLUMN `phone` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `position` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL;
+
+-- ALTER TABLE `master_departements`
+--   MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+--   MODIFY COLUMN `created_at` datetime(3) DEFAULT NULL,
+--   MODIFY COLUMN `updated_at` datetime(3) DEFAULT NULL;
+
+-- ALTER TABLE `master_properties`
+--   MODIFY COLUMN `code` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+--   MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+--   MODIFY COLUMN `address` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+--   MODIFY COLUMN `phone` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `contact` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+--   MODIFY COLUMN `enable` tinyint(1) DEFAULT '1';
+
+-- NOTE: master_table_access TIDAK diubah (dibiarkan utuh untuk aplikasi lama).
+-- Sebagai gantinya, dibuat tabel baru menu_access (copy struct + data) untuk aplikasi baru.
+
+CREATE TABLE IF NOT EXISTS `menu_access` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `parent_id` bigint UNSIGNED DEFAULT NULL,
+  `menu_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `path` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `endpoint` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `icon` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `sort_order` bigint DEFAULT '0',
+  `is_active` tinyint(1) DEFAULT '1',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+INSERT INTO `menu_access` (`id`, `name`, `parent_id`, `menu_name`, `path`, `endpoint`, `icon`, `sort_order`, `is_active`) VALUES
+(1, 'Departments', 22, 'Departments', '/departments', 'departements', 'folder', 6, 1),
+(2, 'Users', 22, 'Users', '/users', 'users', 'layout', 20, 1),
+(3, 'Roles', 22, 'Roles', '/roles', 'roles', 'layout', 10, 1),
+(7, 'Customers', 23, 'Customers', '/customers', 'customers', 'layout', 104, 1),
+(8, 'Quotations', NULL, 'Quotations', '/quotations', 'quotations', 'layout', 10, 1),
+(10, 'Reports', NULL, 'Reports', '', '', 'scroll-text', 40, 1),
+(18, 'Payment Terms', 22, 'Payment Terms', '/payment-terms', 'project-terms', 'creadi-card', 130, 1),
+(20, 'Customer Category', 23, 'Customer Category', '/customer-categories', 'customer-categories', 'users', 103, 1),
+(22, 'Seetings', NULL, 'Seetings', NULL, '', 'settings', 500, 1),
+(23, 'Master Data', NULL, 'Master Data', NULL, '', 'folder', 100, 1),
+(24, 'Project Levels', 22, 'Project Levels', '/project-levels', '', 'layout', 120, 1),
+(25, 'Project Priorities', 22, 'Project Priorities', '/project-priorities', 'project-priorities', 'layout', 140, 1),
+(49, 'Quotation Status', 22, 'Quotation Status', '/quotation-statuses', 'quotation-statuses', 'layout', 150, 1),
+(50, 'Quotation Progress', 22, 'Quotation Progress', '/quotation-progress', 'quotation-progress', 'layout', 145, 1),
+(51, 'Units', 23, 'Units', '/units', 'units', 'layout', 150, 1),
+(58, 'Live Stocks', NULL, 'Live Stocks', '/live-stocks', 'live-stocks', 'circle-pile', 30, 1),
+(67, 'usergroupspolicies', NULL, 'usergroupspolicies', NULL, 'policies', NULL, 0, 1),
+(69, 'usergroups', NULL, 'usergroups', NULL, 'roles', NULL, 0, 1),
+(70, 'project priority', NULL, 'project priority', NULL, 'project-priorities', NULL, 0, 1),
+(71, 'departements', NULL, 'departements', NULL, 'departements', NULL, 0, 1),
+(72, 'payment term', NULL, 'payment term', NULL, 'payment-terms', NULL, 0, 1),
+(73, 'project level', NULL, 'project level', NULL, 'project-levels', NULL, 0, 1),
+(75, 'Quotations Report', 10, 'Quotations Report', '/reports/quotations-report', 'quotations', 'file-text', 1, 1),
+(76, 'Top Customers', 10, 'Top Customers', '/reports/top-customers', 'quotations', 'award', 2, 1),
+(77, 'Followups Report', 10, 'Followups Report', '/reports/followups-report', 'quotation-followups', 'clipboard-list', 3, 1),
+(78, 'Sales Summary By Customer', 10, 'Sales Summary By Customer', '/reports/sales-summary-by-customer', 'quotations', 'bar-chart-3', 4, 1),
+(79, 'Sales Detail By Customer', 10, 'Sales Detail By Customer', '/reports/sales-detail-by-customer', 'quotations', 'list', 5, 1),
+(80, 'Sales Detail By Sales Person', 10, 'Sales Detail By Sales Person', '/reports/sales-detail-by-sales-person/', '/reports/sales-detail-by-sales-person/', 'layout', 6, 1),
+(81, 'Sales Item By Customer', 10, 'Sales Item By Customer', '/reports/sales-item-by-customer', '/reports/sales-item-by-customer', 'layout', 7, 1),
+(82, 'Sales Item By Sales Person', 10, 'Sales Item By Sales Person', '/reports/sales-item-by-sales-person', '/reports/sales-item-by-sales-person', 'layout', 8, 1),
+(83, 'Sales Summary By Sales Person', 10, 'Sales Summary By Sales Person', '/reports/sales-summary-by-sales-person', 'quotations', 'bar-chart-3', 5, 1),
+(84, 'Sales Charts By Customer', 10, 'Sales Charts By Customer', '/reports/sales-charts-by-customer', 'quotations', 'bar-chart-3', 6, 1),
+(85, 'Sales Charts By Sales Person', 10, 'Sales Charts By Sales Person', '/reports/sales-charts-by-sales-person', 'quotations', 'bar-chart-3', 7, 1),
+(86, 'Kanban Boards', NULL, 'Kanban Boards', '/kanban', 'kanban', 'kanban', 35, 1);
+
+ALTER TABLE `payment_term`
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `day` bigint DEFAULT NULL,
+  MODIFY COLUMN `property_id` bigint UNSIGNED DEFAULT NULL,
+  MODIFY COLUMN `user_created` bigint UNSIGNED DEFAULT NULL,
+  MODIFY COLUMN `user_update` bigint UNSIGNED DEFAULT NULL,
+  MODIFY COLUMN `created_at` datetime(3) DEFAULT NULL,
+  MODIFY COLUMN `updated_at` datetime(3) DEFAULT NULL;
+
+ALTER TABLE `project_level`
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+ALTER TABLE `project_priority`
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+ALTER TABLE `quotation`
+  MODIFY COLUMN `id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `quotation_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  MODIFY COLUMN `status_review` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  MODIFY COLUMN `folder` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `po_no` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `po_file` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `po_assign_to` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `sales_id` int DEFAULT NULL;
+
+ALTER TABLE `quotation_detail`
+  MODIFY COLUMN `id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `part_no` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `descriptions` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+ALTER TABLE `quotation_files`
+  MODIFY COLUMN `id` varchar(15) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `file_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `link` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+ALTER TABLE `quotation_followup`
+  MODIFY COLUMN `id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  MODIFY COLUMN `po_no` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `po_file` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL;
+
+ALTER TABLE `quotation_master`
+  MODIFY COLUMN `id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `notes` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  MODIFY COLUMN `po_no` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `po_file` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `po_assign_to` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `sales_id` int DEFAULT NULL;
+
+ALTER TABLE `quotation_progress`
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+ALTER TABLE `quotation_status`
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+ALTER TABLE `quotation_subdetail`
+  MODIFY COLUMN `id` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `part_no` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `descriptions` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+ALTER TABLE `setting`
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `value` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+ALTER TABLE `units`
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+ALTER TABLE `user_group_policies`
+  ADD COLUMN `table_id` int NOT NULL,
+  MODIFY COLUMN `table_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `action` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `created_at` datetime(3) DEFAULT NULL,
+  MODIFY COLUMN `updated_at` datetime(3) DEFAULT NULL;
+
+ALTER TABLE `user_groups`
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `created_at` datetime(3) DEFAULT NULL,
+  MODIFY COLUMN `updated_at` datetime(3) DEFAULT NULL;
+
+ALTER TABLE `user_policies`
+  MODIFY COLUMN `table_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `action` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL;
+
+ALTER TABLE `users`
+  ADD COLUMN `role_name` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  ADD COLUMN `dept_name` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  MODIFY COLUMN `name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `email` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `phone_no` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  MODIFY COLUMN `avatar` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `sign` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `enable` tinyint(1) DEFAULT '1',
+  MODIFY COLUMN `inisial` varchar(5) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  MODIFY COLUMN `created_at` datetime(3) DEFAULT NULL,
+  MODIFY COLUMN `updated_at` datetime(3) DEFAULT NULL,
+  MODIFY COLUMN `user_created` bigint NOT NULL,
+  MODIFY COLUMN `user_update` bigint NOT NULL;
+
+
+-- ================================================================
+-- BAGIAN 2: CREATE TABLE untuk tabel baru (hanya di svelte_go)
+-- ================================================================
+
+CREATE TABLE IF NOT EXISTS `kanban_attachments` (
+  `id` int NOT NULL,
+  `card_id` int NOT NULL,
+  `file_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `file_path` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `file_size` bigint DEFAULT NULL,
+  `mime_type` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `uploaded_by` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_boards` (
+  `id` int NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `description` text COLLATE utf8mb4_general_ci,
+  `background` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `is_archived` tinyint(1) DEFAULT '0',
+  `property_id` int DEFAULT NULL,
+  `user_created` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_card_labels` (
+  `kanban_card_id` int UNSIGNED NOT NULL,
+  `kanban_label_id` int UNSIGNED NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_card_members` (
+  `kanban_card_id` int UNSIGNED NOT NULL,
+  `user_id` int UNSIGNED NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_cards` (
+  `id` int NOT NULL,
+  `list_id` int NOT NULL,
+  `board_id` int NOT NULL,
+  `title` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `description` text COLLATE utf8mb4_general_ci,
+  `position` int DEFAULT '0',
+  `due_date` datetime DEFAULT NULL,
+  `start_date` datetime DEFAULT NULL,
+  `cover_image` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `is_archived` tinyint(1) DEFAULT '0',
+  `user_created` int DEFAULT NULL,
+  `user_updated` int DEFAULT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_checklist_items` (
+  `id` int NOT NULL,
+  `checklist_id` int NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `is_checked` tinyint(1) DEFAULT '0',
+  `position` int DEFAULT '0',
+  `assignee_id` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_checklists` (
+  `id` int NOT NULL,
+  `card_id` int NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `position` int DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_comments` (
+  `id` int NOT NULL,
+  `card_id` int NOT NULL,
+  `user_id` int DEFAULT NULL,
+  `content` text COLLATE utf8mb4_general_ci NOT NULL,
+  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_labels` (
+  `id` int NOT NULL,
+  `board_id` int NOT NULL,
+  `name` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
+  `color` varchar(50) COLLATE utf8mb4_general_ci NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `kanban_lists` (
+  `id` int NOT NULL,
+  `board_id` int NOT NULL,
+  `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
+  `position` int DEFAULT '0',
+  `color` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+
+-- ================================================================
+-- BAGIAN 3: INSERT DATA untuk tabel kanban* (dari svelte_go)
+-- ================================================================
+
+INSERT INTO `kanban_attachments` (`id`, `card_id`, `file_name`, `file_path`, `file_size`, `mime_type`, `uploaded_by`, `created_at`) VALUES
+(1, 1, 'CONFIDENTIAL MEDICAL REPORT Pedan Vitalii.docx', 'uploads/kanban/8075019b-4b5a-41a8-b901-4d228ca15c46.docx', 210349, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 109, '2026-06-02 22:33:51');
+
+INSERT INTO `kanban_boards` (`id`, `name`, `description`, `background`, `is_archived`, `property_id`, `user_created`, `created_at`, `updated_at`) VALUES
+(1, 'sales board', NULL, '#7c3aed', 0, NULL, 109, '2026-06-02 20:57:55', '2026-06-02 20:57:55');
+
+INSERT INTO `kanban_cards` (`id`, `list_id`, `board_id`, `title`, `description`, `position`, `due_date`, `start_date`, `cover_image`, `is_archived`, `user_created`, `user_updated`, `created_at`, `updated_at`) VALUES
+(1, 2, 1, 'buat quotation', 'sdsdd sdadasd2345', 1, '2026-06-27 20:58:00', '2026-06-05 20:58:00', NULL, 0, 109, 109, '2026-06-02 20:58:54', '2026-06-02 22:45:23'),
+(2, 1, 1, 'Test Card', 'Testing card creation', 0, NULL, NULL, NULL, 0, 109, 109, '2026-06-02 21:19:57', '2026-06-02 22:45:26'),
+(3, 4, 1, 'sdsdsdsdsds', 'dsdsdsd', 0, NULL, NULL, NULL, 0, 109, 109, '2026-06-02 21:36:35', '2026-06-02 21:36:35');
+
+INSERT INTO `kanban_card_labels` (`kanban_card_id`, `kanban_label_id`) VALUES
+(1, 3),
+(1, 4),
+(2, 1),
+(2, 2);
+
+INSERT INTO `kanban_card_members` (`kanban_card_id`, `user_id`) VALUES
+(1, 122),
+(2, 109),
+(2, 111);
+
+INSERT INTO `kanban_checklists` (`id`, `card_id`, `name`, `position`) VALUES
+(2, 1, '123', 1),
+(3, 2, 'fdfdfdf', 0);
+
+INSERT INTO `kanban_checklist_items` (`id`, `checklist_id`, `name`, `is_checked`, `position`, `assignee_id`) VALUES
+(1, 3, 'bvbvbv', 1, 0, NULL),
+(2, 3, 'vbvbvb', 0, 1, NULL);
+
+INSERT INTO `kanban_comments` (`id`, `card_id`, `user_id`, `content`, `created_at`, `updated_at`) VALUES
+(1, 2, 109, 'test', '2026-06-02 22:19:08', '2026-06-02 22:19:08'),
+(2, 1, 109, 'test', '2026-06-02 22:43:23', '2026-06-02 22:43:23');
+
+INSERT INTO `kanban_labels` (`id`, `board_id`, `name`, `color`) VALUES
+(1, 1, 'Bug', '#ef4444'),
+(2, 1, 'Feature', '#3b82f6'),
+(3, 1, 'Improvement', '#10b981'),
+(4, 1, 'Question', '#f59e0b'),
+(5, 1, 'Urgent', '#ec4899'),
+(6, 1, 'Test', '#6b7280');
+
+INSERT INTO `kanban_lists` (`id`, `board_id`, `name`, `position`, `color`) VALUES
+(1, 1, 'To Do', 0, NULL),
+(2, 1, 'In Progress', 1, NULL),
+(3, 1, 'Done', 2, NULL),
+(4, 1, 'test', 3, NULL);
+
+-- ================================================================
+-- BAGIAN 4: INDEX/KEY untuk tabel baru
+-- ================================================================
+
+ALTER TABLE `kanban_attachments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_card_id` (`card_id`);
+
+ALTER TABLE `kanban_boards`
+  ADD PRIMARY KEY (`id`);
+
+ALTER TABLE `kanban_card_labels`
+  ADD PRIMARY KEY (`kanban_card_id`,`kanban_label_id`);
+
+ALTER TABLE `kanban_card_members`
+  ADD PRIMARY KEY (`kanban_card_id`,`user_id`);
+
+ALTER TABLE `kanban_cards`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_list_id` (`list_id`),
+  ADD KEY `idx_board_id` (`board_id`);
+
+ALTER TABLE `kanban_checklist_items`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_checklist_id` (`checklist_id`);
+
+ALTER TABLE `kanban_checklists`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_card_id` (`card_id`);
+
+ALTER TABLE `kanban_comments`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_card_id` (`card_id`);
+
+ALTER TABLE `kanban_labels`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_board_id` (`board_id`);
+
+ALTER TABLE `kanban_lists`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_board_id` (`board_id`);
+
+
+-- ================================================================
+-- BAGIAN 5: INDEX/KEY untuk tabel existing (optional)
+-- ================================================================
+-- Berikut adalah perbedaan PRIMARY KEY yang perlu disesuaikan:
+--
+-- Table: quotation
+--   Target (svelte_go): ['ALTER TABLE `quotation`\n  ADD PRIMARY KEY (`id`);']
+--   Current (magnum):  ['ALTER TABLE `quotation`\n  ADD PRIMARY KEY (`property_id`,`id`),\n  ADD KEY `id` (`id`),\n  ADD KEY `fromdate_todate` (`quotation_date`);']
+
+-- Table: quotation_detail
+--   Target (svelte_go): ['ALTER TABLE `quotation_detail`\n  ADD PRIMARY KEY (`id`,`rev_id`,`line`);']
+--   Current (magnum):  ['ALTER TABLE `quotation_detail`\n  ADD PRIMARY KEY (`rev_id`,`id`,`line`) USING BTREE;']
+
+-- Table: quotation_subdetail
+--   Target (svelte_go): ['ALTER TABLE `quotation_subdetail`\n  ADD PRIMARY KEY (`id`,`rev_id`,`line`,`subline`);']
+--   Current (magnum):  ['ALTER TABLE `quotation_subdetail`\n  ADD PRIMARY KEY (`rev_id`,`id`,`line`,`subline`) USING BTREE;']
+
+-- Table: quotation_followup
+--   Target (svelte_go): []
+--   Current (magnum):  ['ALTER TABLE `quotation_followup`\n  ADD PRIMARY KEY (`property_id`,`id`,`line_id`) USING BTREE,\n  ADD KEY `id` (`id`);']
+
+
+-- ================================================================
+-- BAGIAN 6: Konversi COLLATION ke utf8mb4_general_ci
+-- ================================================================
+
+ALTER TABLE `counter_id` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `currency` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `customer` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `customer_category` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `customer_contact` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `master_departements` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `master_properties` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `menu_access` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `payment_term` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `project_level` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `project_priority` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `quotation` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `quotation_detail` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `quotation_files` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `quotation_followup` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `quotation_master` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `quotation_progress` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `quotation_status` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `quotation_subdetail` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `setting` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `units` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `user_group_policies` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `user_groups` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `user_policies` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+ALTER TABLE `users` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+
+-- ================================================================
+-- BAGIAN 7: TABEL YANG ADA DI MAGNUM TAPI TIDAK DI SVELTE_GO
+-- ================================================================
+-- Tabel berikut ada di magnum_sales tapi TIDAK di svelte_go:
+-- customer_asli, followup_notification, migrations, password_resets,
+-- po_detail, po_master, product_bundle_items, product_category,
+-- product_unit_items, products, purchase, purchase_item,
+-- quotation_pivot, quotation_target, reminder, reminder_participant,
+-- reminder_type, setting_bak1, shipping, store, vendor
+-- Tabel-tabel ini TIDAK dihapus untuk menjaga data.
+
+-- ================================================================
+-- BAGIAN 8: PROCEDURE (ada 14 di magnum_sales, 0 di svelte_go)
+-- ================================================================
+-- Stored Procedure TIDAK dihapus untuk menjaga fungsionalitas.
+
+-- ================================================================
+-- NOTES / CATATAN PENTING:
+-- ================================================================
+-- 1. PERHATIAN: master_properties.code berubah varchar(255) DEFAULT NULL -> varchar(50) NOT NULL
+--    Pastikan tidak ada nilai NULL di kolom code sebelum menjalankan.
+-- 2. PERHATIAN: quotation.id, quotation_detail.id, quotation_master.id,
+--    quotation_subdetail.id, quotation_followup.id berubah varchar(15) -> varchar(20)
+--    Perubahan ini aman (widening), tidak akan memotong data.
+-- 3. PERHATIAN: payment_term.created_at berubah dari datetime NOT NULL -> datetime(3) NULL
+--    Ini mengubah NOT NULL menjadi nullable, data existing tetap aman.
+-- 4. Untuk PK changes (BAGIAN 5), jangan dijalankan otomatis.
+--    Drop/add PK merebuild tabel dan berisiko pada tabel besar.
+-- 5. master_table_access TIDAK diubah — dibuat tabel baru menu_access sebagai copy
+--    untuk digunakan oleh aplikasi baru (backend Go). Aplikasi lama tetap pakai master_table_access.
+-- 6. Urutan eksekusi: BAGIAN 1 -> BAGIAN 2 -> BAGIAN 3 -> BAGIAN 4 -> BAGIAN 6
+-- ================================================================

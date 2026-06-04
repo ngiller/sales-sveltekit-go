@@ -1,0 +1,12 @@
+2026/05/22 11:53:51 Manual database migrations completed successfully
+2026/05/22 11:53:51 Server starting on port 8080
+
+ ┌───────────────────────────────────────────────────┐ 
+ │                   Fiber v2.50.0                   │ 
+ │               http://127.0.0.1:8080               │ 
+ │       (bound on host 0.0.0.0 and port 8080)       │ 
+ │                                                   │ 
+ │ Handlers ........... 287  Processes ........... 1 │ 
+ │ Prefork ....... Disabled  PID ............ 114234 │ 
+ └───────────────────────────────────────────────────┘ 
+
