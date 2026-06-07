@@ -28,6 +28,14 @@ func (r *PaymentTermRepository) FindAll(search string, page, limit int, sortBy, 
 	if sortBy == "" {
 		sortBy = "name"
 	}
+	validSort := map[string]bool{
+		"id":   true,
+		"name": true,
+		"day":  true,
+	}
+	if !validSort[sortBy] {
+		sortBy = "name"
+	}
 	if sortDir == "" {
 		sortDir = "asc"
 	}

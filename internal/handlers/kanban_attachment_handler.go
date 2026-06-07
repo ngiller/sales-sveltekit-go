@@ -5,6 +5,7 @@ import (
 	"backend/internal/repository"
 	"backend/internal/utils"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -48,6 +49,10 @@ func (h *KanbanAttachmentHandler) Create(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "No file uploaded")
 	}
 
+	if msg := utils.ValidateFile(file, utils.MergeExts(utils.AllowedImageExts(), utils.AllowedDocumentExts()), 5*1024*1024); msg != "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, msg)
+	}
+
 	extension := filepath.Ext(file.Filename)
 	newFilename := fmt.Sprintf("%s%s", uuid.New().String(), extension)
 	saveDir := filepath.Join("uploads", "kanban")
@@ -57,6 +62,7 @@ func (h *KanbanAttachmentHandler) Create(c *fiber.Ctx) error {
 	savePath := filepath.Join(saveDir, newFilename)
 
 	if err := c.SaveFile(file, savePath); err != nil {
+		log.Printf("ERROR: Failed to save kanban attachment: %v", err)
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to save file")
 	}
 
@@ -76,7 +82,8 @@ func (h *KanbanAttachmentHandler) Create(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to save attachment: "+err.Error())
+		log.Printf("ERROR: Failed to save attachment: %v", err)
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to save attachment")
 	}
 
 	return utils.SuccessResponse(c, fiber.StatusCreated, attachment)

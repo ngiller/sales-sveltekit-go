@@ -28,6 +28,14 @@ func (r *QuotationProgressRepository) FindAll(search string, page, limit int, so
 	if sortBy == "" {
 		sortBy = "name"
 	}
+	validSort := map[string]bool{
+		"id":       true,
+		"name":     true,
+		"progress": true,
+	}
+	if !validSort[sortBy] {
+		sortBy = "name"
+	}
 	if sortDir == "" {
 		sortDir = "asc"
 	}

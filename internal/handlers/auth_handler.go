@@ -5,6 +5,7 @@ import (
 	"backend/internal/models"
 	"backend/internal/repository"
 	"backend/internal/utils"
+	"log"
 	"strconv"
 	"time"
 
@@ -32,14 +33,15 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 
 	user, err := h.userRepo.FindByEmail(req.Email)
 	if err != nil {
-		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Internal server error: "+err.Error())
+		log.Printf("ERROR: FindByEmail: %v", err)
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Internal server error")
 	}
 
 	if user == nil {
 		return utils.ErrorResponse(c, fiber.StatusUnauthorized, "Invalid login credentials provided")
 	}
 
-	if !config.CheckPassword(user.Password, req.Password) && req.Password != "admin123" {
+	if !config.CheckPassword(user.Password, req.Password) {
 		return utils.ErrorResponse(c, fiber.StatusUnauthorized, "Invalid login credentials provided")
 	}
 
@@ -61,8 +63,8 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		Value:    token,
 		Expires:  time.Now().Add(24 * time.Hour),
 		HTTPOnly: true,
-		Secure:   false, // Set to true if using HTTPS
-		SameSite: "Lax",
+		Secure:   true,
+		SameSite: "Strict",
 	})
 
 	var menus []models.MenuItem

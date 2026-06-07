@@ -37,6 +37,8 @@ func (r *CustomerRepository) FindAll(search string, page, limit int, sortBy, sor
 		sortBy = "customer.email"
 	} else if sortBy == "phone" {
 		sortBy = "customer.phone"
+	} else {
+		sortBy = "customer.name"
 	}
 
 	if sortDir == "" {

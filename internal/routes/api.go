@@ -1,11 +1,14 @@
 package routes
 
 import (
+	"time"
+
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/utils"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"gorm.io/gorm"
 )
 
@@ -26,7 +29,22 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler,
 	api.Get("/brands", middleware.AuthMiddleware(), brandHandler.FindAll)
 
 	// Auth Routes
-	api.Post("/login", authHandler.Login)
+	loginLimiter := limiter.New(limiter.Config{
+		Max:        5,
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			ip := c.IP()
+			email := c.FormValue("email")
+			if email != "" {
+				return ip + ":" + email
+			}
+			return ip
+		},
+		LimitReached: func(c *fiber.Ctx) error {
+			return utils.ErrorResponse(c, fiber.StatusTooManyRequests, "Too many login attempts. Please try again later.")
+		},
+	})
+	api.Post("/login", loginLimiter, authHandler.Login)
 	api.Post("/logout", authHandler.Logout)
 	api.Get("/profile", middleware.AuthMiddleware(), authHandler.Profile)
 	api.Put("/profile/:id", middleware.AuthMiddleware(), authHandler.UpdateProfile)

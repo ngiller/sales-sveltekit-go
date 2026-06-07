@@ -145,11 +145,16 @@ func (h *UserHandler) Update(c *fiber.Ctx) error {
 	user.Name = req.Name
 	user.Email = req.Email
 	user.PhoneNo = req.PhoneNo
-	user.UserGroupID = req.UserGroupID
 	user.DepartementID = req.DepartementID
-	user.PropertyID = req.PropertyID
-	user.Enable = req.Enable
 	user.Inisial = req.Inisial
+
+	// Only admins (user_group_id == 1) can change role, property, or enable/disable users
+	currentUserGroupID := c.Locals("user_group_id")
+	if currentUserGroupID != nil && currentUserGroupID.(uint) == 1 {
+		user.UserGroupID = req.UserGroupID
+		user.PropertyID = req.PropertyID
+		user.Enable = req.Enable
+	}
 
 	if req.Password != "" {
 		hashedPassword, err := config.HashPassword(req.Password)
@@ -212,6 +217,10 @@ func (h *UserHandler) UploadAvatar(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "No file uploaded")
 	}
 
+	if msg := utils.ValidateFile(file, utils.AllowedImageExts(), 2*1024*1024); msg != "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, msg)
+	}
+
 	extension := filepath.Ext(file.Filename)
 	newFilename := fmt.Sprintf("%s%s", uuid.New().String(), extension)
 	savePath := filepath.Join("uploads", "avatars", newFilename)
@@ -247,6 +256,10 @@ func (h *UserHandler) UploadSignature(c *fiber.Ctx) error {
 	file, err := c.FormFile("signature")
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "No file uploaded")
+	}
+
+	if msg := utils.ValidateFile(file, utils.AllowedImageExts(), 1*1024*1024); msg != "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, msg)
 	}
 
 	extension := filepath.Ext(file.Filename)

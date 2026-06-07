@@ -5,6 +5,7 @@ import (
 	"backend/internal/repository"
 	"backend/internal/utils"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -154,6 +155,10 @@ func (h *QuotationFollowupHandler) UploadPO(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "No file uploaded")
 	}
 
+	if msg := utils.ValidateFile(file, utils.MergeExts(utils.AllowedImageExts(), utils.AllowedDocumentExts()), 10*1024*1024); msg != "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, msg)
+	}
+
 	// Create directory if not exists
 	uploadDir := filepath.Join("uploads", "po_files")
 	if err := os.MkdirAll(uploadDir, os.ModePerm); err != nil {
@@ -165,7 +170,8 @@ func (h *QuotationFollowupHandler) UploadPO(c *fiber.Ctx) error {
 	savePath := filepath.Join(uploadDir, newFilename)
 
 	if err := c.SaveFile(file, savePath); err != nil {
-		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to save file: "+err.Error())
+		log.Printf("ERROR: Failed to save PO file: %v", err)
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to save file")
 	}
 
 	fileURL := fmt.Sprintf("%s/%s", c.BaseURL(), filepath.ToSlash(savePath))

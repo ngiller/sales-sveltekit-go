@@ -25,7 +25,14 @@ func (r *UnitRepository) FindAll(search string, page, limit int, sortBy, sortDir
 
 	query.Count(&total)
 
-	if sortBy == "" || sortBy == "name" {
+	if sortBy == "" {
+		sortBy = "units_name"
+	}
+	validSort := map[string]bool{
+		"id":         true,
+		"units_name": true,
+	}
+	if !validSort[sortBy] {
 		sortBy = "units_name"
 	}
 	if sortDir == "" {

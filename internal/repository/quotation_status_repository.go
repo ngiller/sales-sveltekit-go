@@ -28,6 +28,13 @@ func (r *QuotationStatusRepository) FindAll(search string, page, limit int, sort
 	if sortBy == "" {
 		sortBy = "name"
 	}
+	validSort := map[string]bool{
+		"id":   true,
+		"name": true,
+	}
+	if !validSort[sortBy] {
+		sortBy = "name"
+	}
 	if sortDir == "" {
 		sortDir = "asc"
 	}

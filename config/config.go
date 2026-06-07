@@ -26,15 +26,23 @@ type Config struct {
 
 var AppConfig *Config
 
+func requireEnv(key string) string {
+	val := os.Getenv(key)
+	if val == "" {
+		log.Fatalf("FATAL: Environment variable %s is not set", key)
+	}
+	return val
+}
+
 func InitConfig() {
 	AppConfig = &Config{
 		DBHost:      getEnv("DB_HOST", "localhost"),
 		DBPort:      getEnv("DB_PORT", "3306"),
 		DBUser:      getEnv("DB_USER", "root"),
-		DBPassword:  getEnv("DB_PASSWORD", "Pass@w0rd"),
+		DBPassword:  requireEnv("DB_PASSWORD"),
 		DBName:      getEnv("DB_NAME", "magnum_sales_svelte_go"),
 		DBStockName: getEnv("DB_STOCK_NAME", "magnum_stock_db"),
-		JWTSecret:   getEnv("JWT_SECRET", "magnum_secret_key_2024"),
+		JWTSecret:   requireEnv("JWT_SECRET"),
 	}
 }
 
@@ -109,11 +117,14 @@ func setupDBPool(db *gorm.DB) {
 
 func ErrorHandler(c *fiber.Ctx, err error) error {
 	code := fiber.StatusInternalServerError
+	msg := "Internal server error"
 	if e, ok := err.(*fiber.Error); ok {
 		code = e.Code
+		msg = e.Message
 	}
+	log.Printf("HTTP Error %d: %v", code, err)
 	return c.Status(code).JSON(fiber.Map{
-		"message": err.Error(),
+		"message": msg,
 	})
 }
 

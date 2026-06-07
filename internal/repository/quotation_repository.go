@@ -101,6 +101,8 @@ func (r *QuotationRepository) FindAll(search, fromDate, toDate string, qType, st
 		sortBy = "quotation.next_followup"
 	} else if sortBy == "status" {
 		sortBy = "quotation_status.name"
+	} else {
+		sortBy = "quotation.quotation_date"
 	}
 
 	if sortDir == "" {

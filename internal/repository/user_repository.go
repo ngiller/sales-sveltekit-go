@@ -86,6 +86,8 @@ func (r *UserRepository) FindAll(search string, page, limit int, sortBy, sortDir
 		sortBy = "user_groups.name"
 	} else if sortBy == "dept_name" {
 		sortBy = "master_departements.name"
+	} else {
+		sortBy = "users.name"
 	}
 
 	if sortDir == "" {

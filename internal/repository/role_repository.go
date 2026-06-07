@@ -29,6 +29,13 @@ func (r *RoleRepository) FindAll(search string, page, limit int, sortBy, sortDir
 	if sortBy == "" {
 		sortBy = "name"
 	}
+	validSort := map[string]bool{
+		"id":   true,
+		"name": true,
+	}
+	if !validSort[sortBy] {
+		sortBy = "name"
+	}
 	if sortDir == "" {
 		sortDir = "asc"
 	}

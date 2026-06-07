@@ -44,7 +44,8 @@ func (r *StockRepository) FindAllProducts(search string, categoryID, brandID str
 			COALESCE(ps.end_stock, 0) as end_stock,
 			COALESCE(ps.last_buy_price, '0') as last_buy_price,
 			COALESCE(ps.last_selling_price, '0') as last_selling_price,
-			ps.last_buy_date
+			ps.last_buy_date,
+			ps.unit_id
 		FROM product p
 		LEFT JOIN brand b ON b.id = p.brand_id
 		LEFT JOIN product_category pc ON pc.id = p.category_id
