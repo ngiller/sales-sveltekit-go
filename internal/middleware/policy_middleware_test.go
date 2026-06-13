@@ -39,8 +39,12 @@ func setupPolicyTest(t *testing.T, groupID interface{}) policyTest {
 
 	app := fiber.New()
 
-	token, err := config.GenerateJWT(1, "admin@test.com", "AD")
-	require.NoError(t, err)
+	var jwtGroupID *uint
+	if gID, ok := groupID.(int); ok {
+		v := uint(gID)
+		jwtGroupID = &v
+	}
+	token, err := config.GenerateJWT(1, "admin@test.com", "AD", jwtGroupID)
 
 	mock.ExpectQuery("SELECT `user_group_id` FROM `users` WHERE `users`.`id` = \\? ORDER BY `users`.`id` LIMIT 1").
 		WithArgs(uint(1)).

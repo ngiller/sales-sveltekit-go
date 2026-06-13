@@ -32,17 +32,16 @@ func (h *StockHandler) GetAllProducts(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve live stocks: "+err.Error())
 	}
 
-	// Calculate total_cogs
-	totalCogs := 0.0
+	// Calculate grand_total per item
 	for _, item := range items {
-		if endStock, ok := item["end_stock"].(int64); ok {
-			if lastSellingPrice, ok := item["last_selling_price"].(string); ok {
-				// Parse price string to float
-				if price, err := strconv.ParseFloat(lastSellingPrice, 64); err == nil {
-					totalCogs += float64(endStock) * price
-				}
-			}
-		}
+		endStock := getFloatValue(item, "end_stock")
+		item["grand_total"] = endStock * getFloatValue(item, "last_buy_price")
+	}
+
+	// Calculate total stock value across ALL products (not just current page)
+	totalCogs, err := h.repo.GetTotalStockValue(search, categoryID, brandID)
+	if err != nil {
+		totalCogs = 0
 	}
 
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
@@ -51,6 +50,23 @@ func (h *StockHandler) GetAllProducts(c *fiber.Ctx) error {
 		"page":       page,
 		"limit":      limit,
 		"total_cogs": totalCogs,
+	})
+}
+
+func (h *StockHandler) GetPurchaseHistory(c *fiber.Ctx) error {
+	idStr := c.Params("id")
+	id, err := strconv.ParseUint(idStr, 10, 32)
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid product ID")
+	}
+
+	items, err := h.repo.FindPurchaseHistory(uint(id))
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve purchase history: "+err.Error())
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+		"items": items,
 	})
 }
 
@@ -65,6 +81,11 @@ func (h *StockHandler) ExportToExcel(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve data for export: "+err.Error())
 	}
 
+	// Compute grand_total for export
+	for _, item := range items {
+		item["grand_total"] = getFloatValue(item, "end_stock") * getFloatValue(item, "last_buy_price")
+	}
+
 	// Create Excel file
 	f := excelize.NewFile()
 	// Rename default sheet to "Live Stocks"
@@ -72,7 +93,7 @@ func (h *StockHandler) ExportToExcel(c *fiber.Ctx) error {
 	sheetName := "Live Stocks"
 	
 	// Set headers
-	headers := []string{"No", "Product Code", "Category", "Brand", "Product Name", "Stock", "Last Buy Date", "Buy Price", "Selling Price"}
+	headers := []string{"No", "Product Code", "Category", "Brand", "Product Name", "Stock", "Last Buy Date", "Buy Price", "Selling Price", "Grand Total"}
 	for i, header := range headers {
 		cell, _ := excelize.CoordinatesToCellName(i+1, 1)
 		f.SetCellValue(sheetName, cell, header)
@@ -117,11 +138,15 @@ func (h *StockHandler) ExportToExcel(c *fiber.Ctx) error {
 		// Selling Price
 		cell, _ = excelize.CoordinatesToCellName(9, rowNum)
 		f.SetCellValue(sheetName, cell, getFloatValue(item, "last_selling_price"))
+
+		// Grand Total
+		cell, _ = excelize.CoordinatesToCellName(10, rowNum)
+		f.SetCellValue(sheetName, cell, getFloatValue(item, "grand_total"))
 	}
 
 	// Auto fit column width
-	for i := range headers {
-		col := string(rune('A' + i))
+	cols := []string{"A", "B", "C", "D", "E", "F", "G", "H", "I", "J"}
+	for _, col := range cols {
 		f.SetColWidth(sheetName, col, col, 15)
 	}
 

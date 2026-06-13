@@ -18,7 +18,8 @@ func setupAuthTest() (*fiber.App, string) {
 
 	app := fiber.New()
 
-	token, err := config.GenerateJWT(1, "test@example.com", "TT")
+	var groupID uint = 1
+	token, err := config.GenerateJWT(1, "test@example.com", "TT", &groupID)
 	if err != nil {
 		panic(err)
 	}

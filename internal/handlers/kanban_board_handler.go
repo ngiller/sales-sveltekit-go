@@ -165,6 +165,20 @@ func (h *KanbanBoardHandler) Update(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, board)
 }
 
+func (h *KanbanBoardHandler) ListUsers(c *fiber.Ctx) error {
+	var users []struct {
+		ID      uint    `json:"id"`
+		Name    string  `json:"name"`
+		Inisial *string `json:"inisial"`
+	}
+	if err := h.boardRepo.GetDB().Model(&models.User{}).Select("id, name, inisial").Where("enable = ?", 1).Find(&users).Error; err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve users")
+	}
+	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+		"users": users,
+	})
+}
+
 func (h *KanbanBoardHandler) Delete(c *fiber.Ctx) error {
 	idStr := c.Params("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)

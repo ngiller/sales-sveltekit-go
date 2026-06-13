@@ -108,7 +108,7 @@ func (r *QuotationRepository) FindAll(search, fromDate, toDate string, qType, st
 	if sortDir == "" {
 		sortDir = "desc"
 	}
-	orderClause := sortBy + " " + sortDir
+	orderClause := sortBy + " " + sortDir + ", quotation.quotation_id DESC"
 
 	offset := (page - 1) * limit
 	err := query.Order(orderClause).Offset(offset).Limit(limit).Find(&items).Error
@@ -348,7 +348,7 @@ func (r *QuotationRepository) Delete(id string) error {
 	})
 }
 
-func (r *QuotationRepository) CreateRevision(oldID string, newID string, newQuotationID string, newDate time.Time, userID uint, userInisial string) error {
+func (r *QuotationRepository) CreateRevision(oldID string, newID string, newQuotationID string, newDate time.Time, userID uint, userInisial string, subjectPrefix string) error {
 	oldQ := &models.Quotation{}
 	if err := r.db.First(oldQ, "id = ?", oldID).Error; err != nil {
 		return err
@@ -382,7 +382,7 @@ func (r *QuotationRepository) CreateRevision(oldID string, newID string, newQuot
 	newQ.UpdatedAt = time.Now()
 
 	if newQ.Subject != nil {
-		newQ.Subject = strPtr("[REVISION] " + *newQ.Subject)
+		newQ.Subject = strPtr(subjectPrefix + *newQ.Subject)
 	}
 
 	return r.db.Transaction(func(tx *gorm.DB) error {

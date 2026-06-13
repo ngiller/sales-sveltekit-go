@@ -95,7 +95,8 @@ func TestJWTLifecycle(t *testing.T) {
 	InitConfig()
 	AppConfig.JWTSecret = "test_jwt_secret_for_testing"
 
-	token, err := GenerateJWT(42, "test@example.com", "TT")
+	var groupID uint = 1
+	token, err := GenerateJWT(42, "test@example.com", "TT", &groupID)
 	require.NoError(t, err)
 	assert.NotEmpty(t, token)
 
@@ -134,7 +135,7 @@ func TestJWTWrongSecret(t *testing.T) {
 	InitConfig()
 	AppConfig.JWTSecret = "original_secret"
 
-	token, err := GenerateJWT(1, "a@b.com", "A")
+	token, err := GenerateJWT(1, "a@b.com", "A", nil)
 	require.NoError(t, err)
 
 	AppConfig.JWTSecret = "different_secret"

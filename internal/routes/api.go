@@ -13,13 +13,14 @@ import (
 )
 
 // SetupRoutes registers all API endpoints for the application
-func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler, deptHandler *handlers.DepartementHandler, roleHandler *handlers.RoleHandler, userHandler *handlers.UserHandler, customerCategoryHandler *handlers.CustomerCategoryHandler, customerHandler *handlers.CustomerHandler, customerContactHandler *handlers.CustomerContactHandler, policyHandler *handlers.PolicyHandler, menuAccessHandler *handlers.MenuAccessHandler, paymentTermHandler *handlers.PaymentTermHandler, projectLevelHandler *handlers.ProjectLevelHandler, projectPriorityHandler *handlers.ProjectPriorityHandler, quotationProgressHandler *handlers.QuotationProgressHandler, quotationStatusHandler *handlers.QuotationStatusHandler, unitHandler *handlers.UnitHandler, quotationHandler *handlers.QuotationHandler, quotationFollowupHandler *handlers.QuotationFollowupHandler, stockHandler *handlers.StockHandler, productCategoryHandler *handlers.ProductCategoryHandler, brandHandler *handlers.BrandHandler, kanbanBoardHandler *handlers.KanbanBoardHandler, kanbanListHandler *handlers.KanbanListHandler, kanbanCardHandler *handlers.KanbanCardHandler, kanbanLabelHandler *handlers.KanbanLabelHandler, kanbanChecklistHandler *handlers.KanbanChecklistHandler, kanbanAttachmentHandler *handlers.KanbanAttachmentHandler, kanbanCommentHandler *handlers.KanbanCommentHandler) {
+func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler, deptHandler *handlers.DepartementHandler, roleHandler *handlers.RoleHandler, userHandler *handlers.UserHandler, customerCategoryHandler *handlers.CustomerCategoryHandler, customerHandler *handlers.CustomerHandler, customerContactHandler *handlers.CustomerContactHandler, policyHandler *handlers.PolicyHandler, menuAccessHandler *handlers.MenuAccessHandler, paymentTermHandler *handlers.PaymentTermHandler, projectLevelHandler *handlers.ProjectLevelHandler, projectPriorityHandler *handlers.ProjectPriorityHandler, quotationProgressHandler *handlers.QuotationProgressHandler, quotationStatusHandler *handlers.QuotationStatusHandler, unitHandler *handlers.UnitHandler, quotationHandler *handlers.QuotationHandler, quotationFollowupHandler *handlers.QuotationFollowupHandler, settingHandler *handlers.SettingHandler, stockHandler *handlers.StockHandler, productCategoryHandler *handlers.ProductCategoryHandler, brandHandler *handlers.BrandHandler, kanbanBoardHandler *handlers.KanbanBoardHandler, kanbanListHandler *handlers.KanbanListHandler, kanbanCardHandler *handlers.KanbanCardHandler, kanbanLabelHandler *handlers.KanbanLabelHandler, kanbanChecklistHandler *handlers.KanbanChecklistHandler, kanbanAttachmentHandler *handlers.KanbanAttachmentHandler, kanbanCommentHandler *handlers.KanbanCommentHandler) {
 
 	// API Group
 	api := app.Group("/api")
 
 	// Live Stocks Routes
 	api.Get("/live-stocks", middleware.AuthMiddleware(), stockHandler.GetAllProducts)
+	api.Get("/live-stocks/:id/purchase-history", middleware.AuthMiddleware(), stockHandler.GetPurchaseHistory)
 	api.Get("/live-stocks/export", middleware.AuthMiddleware(), stockHandler.ExportToExcel)
 
 	// Product Categories Routes (from stock DB)
@@ -48,6 +49,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler,
 	api.Post("/logout", authHandler.Logout)
 	api.Get("/profile", middleware.AuthMiddleware(), authHandler.Profile)
 	api.Put("/profile/:id", middleware.AuthMiddleware(), authHandler.UpdateProfile)
+	api.Post("/profile/avatar", middleware.AuthMiddleware(), authHandler.UploadProfileAvatar)
+	api.Post("/profile/signature", middleware.AuthMiddleware(), authHandler.UploadProfileSignature)
 	api.Put("/change-password/:id", middleware.AuthMiddleware(), authHandler.ChangePassword)
 
 	// Users Routes
@@ -193,6 +196,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler,
 	quotationsGrp.Get("/chart-po-analysis", middleware.RequirePolicy(db, "read"), quotationHandler.ChartPOAnalysis)
 	quotationsGrp.Get("/stats", middleware.RequirePolicy(db, "read"), quotationHandler.QuotationStats)
 	quotationsGrp.Get("/need-followup", middleware.RequirePolicy(db, "read"), quotationHandler.NeedFollowup)
+	quotationsGrp.Get("/new", middleware.RequirePolicy(db, "read"), quotationHandler.New)
 	quotationsGrp.Get("/:id", middleware.RequirePolicy(db, "read"), quotationHandler.FindByID)
 	quotationsGrp.Post("/", middleware.RequirePolicy(db, "create"), quotationHandler.Create)
 	quotationsGrp.Put("/:id", middleware.RequirePolicy(db, "update"), quotationHandler.Update)
@@ -215,6 +219,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler,
 	// === Kanban Board Routes ===
 	kanbanBoardGrp := api.Group("/kanban-boards", middleware.AuthMiddleware())
 	kanbanBoardGrp.Get("/", kanbanBoardHandler.FindAll)
+	kanbanBoardGrp.Get("/users", kanbanBoardHandler.ListUsers)
 	kanbanBoardGrp.Get("/:id", kanbanBoardHandler.FindByID)
 	kanbanBoardGrp.Post("/", kanbanBoardHandler.Create)
 	kanbanBoardGrp.Put("/:id", kanbanBoardHandler.Update)
@@ -272,6 +277,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler,
 	kanbanCommentGrp.Post("/", kanbanCommentHandler.Create)
 	kanbanCommentGrp.Put("/:id", kanbanCommentHandler.Update)
 	kanbanCommentGrp.Delete("/:id", kanbanCommentHandler.Delete)
+
+	// Setting Routes
+	api.Get("/settings/code/:code", middleware.AuthMiddleware(), settingHandler.GetByCode)
 
 	// Health Check
 	api.Get("/health", func(c *fiber.Ctx) error {

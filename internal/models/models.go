@@ -452,3 +452,15 @@ type CounterID struct {
 func (CounterID) TableName() string {
 	return "counter_id"
 }
+
+type Setting struct {
+	ID         uint   `gorm:"primaryKey" json:"id"`
+	PropertyID int    `gorm:"column:property_id;not null" json:"property_id"`
+	Code       int    `gorm:"column:code;not null" json:"code"`
+	Name       string `gorm:"column:name;size:255;not null" json:"name"`
+	Value      string `gorm:"column:value;type:text;not null" json:"value"`
+}
+
+func (Setting) TableName() string {
+	return "setting"
+}

@@ -24,8 +24,9 @@ func (h *CustomerHandler) FindAll(c *fiber.Ctx) error {
 	limit, _ := strconv.Atoi(c.Query("limit", "50"))
 	sortBy := c.Query("sort")
 	sortDir := c.Query("order")
+	enable := c.Query("enable")
 
-	customers, total, err := h.repo.FindAll(search, page, limit, sortBy, sortDir)
+	customers, total, err := h.repo.FindAll(search, page, limit, sortBy, sortDir, enable)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve customers")
 	}

@@ -26,7 +26,7 @@ func main() {
 	userID := uint(1)
 	userInisial := "SYS"
 
-	err = repo.CreateRevision(oldID, newID, newQuotationID, now, userID, userInisial)
+	err = repo.CreateRevision(oldID, newID, newQuotationID, now, userID, userInisial, "[DUPLICATE] ")
 	if err != nil {
 		fmt.Printf("Error duplicating: %v\n", err)
 	} else {

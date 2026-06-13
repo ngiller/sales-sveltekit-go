@@ -138,13 +138,16 @@ func CheckPassword(hash, password string) bool {
 	return err == nil
 }
 
-func GenerateJWT(userID int64, email string, inisial string) (string, error) {
+func GenerateJWT(userID int64, email string, inisial string, userGroupID *uint) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"email":   email,
 		"inisial": inisial,
 		"exp":     time.Now().Add(time.Hour * 24).Unix(),
 		"iat":     time.Now().Unix(),
+	}
+	if userGroupID != nil {
+		claims["user_group_id"] = *userGroupID
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

@@ -37,7 +37,7 @@ func main() {
 		allowedOrigins := map[string]bool{}
 		corsOrigins := os.Getenv("CORS_ORIGINS")
 		if corsOrigins == "" {
-			corsOrigins = "http://localhost:5173,http://localhost:5500,https://app.magnumsolusion.co.id,https://sales.magnumsolusion.co.id"
+			corsOrigins = "http://localhost:5173,http://localhost:5500,https://app.magnumsolusion.co.id,https://app.magnumsolusion.co.id:5500,https://sales.magnumsolusion.co.id"
 		}
 		for _, o := range strings.Split(corsOrigins, ",") {
 			allowedOrigins[strings.TrimSpace(o)] = true
@@ -161,6 +161,9 @@ func main() {
 	productCategoryHandler := handlers.NewProductCategoryHandler(productCategoryRepo)
 	brandHandler := handlers.NewBrandHandler(brandRepo)
 
+	settingRepo := repository.NewSettingRepository(db)
+	settingHandler := handlers.NewSettingHandler(settingRepo)
+
 	// Kanban repositories
 	kanbanBoardRepo := repository.NewKanbanBoardRepository(db)
 	kanbanListRepo := repository.NewKanbanListRepository(db)
@@ -180,15 +183,20 @@ func main() {
 	kanbanCommentHandler := handlers.NewKanbanCommentHandler(kanbanCommentRepo)
 
 	// Setup all routing
-	routes.SetupRoutes(app, db, authHandler, deptHandler, roleHandler, userHandler, custCatHandler, custHandler, custContactHandler, policyHandler, menuAccessHandler, paymentTermHandler, projectLevelHandler, projectPriorityHandler, quotationProgressHandler, quotationStatusHandler, unitHandler, quotationHandler, quotationFollowupHandler, stockHandler, productCategoryHandler, brandHandler, kanbanBoardHandler, kanbanListHandler, kanbanCardHandler, kanbanLabelHandler, kanbanChecklistHandler, kanbanAttachmentHandler, kanbanCommentHandler)
+	routes.SetupRoutes(app, db, authHandler, deptHandler, roleHandler, userHandler, custCatHandler, custHandler, custContactHandler, policyHandler, menuAccessHandler, paymentTermHandler, projectLevelHandler, projectPriorityHandler, quotationProgressHandler, quotationStatusHandler, unitHandler, quotationHandler, quotationFollowupHandler, settingHandler, stockHandler, productCategoryHandler, brandHandler, kanbanBoardHandler, kanbanListHandler, kanbanCardHandler, kanbanLabelHandler, kanbanChecklistHandler, kanbanAttachmentHandler, kanbanCommentHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "5500"
 	}
 
-	certDir := "./cert"
-
-	log.Printf("Server starting on port %s (HTTPS) for app.magnumsolusion.co.id", port)
-	log.Fatal(app.ListenTLS(":"+port, filepath.Join(certDir, "cert.pem"), filepath.Join(certDir, "key.pem")))
+	// Disable TLS for development by setting TLS_DISABLE=true
+	if os.Getenv("TLS_DISABLE") == "true" {
+		log.Printf("Server starting on port %s (HTTP - development mode)", port)
+		log.Fatal(app.Listen(":" + port))
+	} else {
+		certDir := "./cert"
+		log.Printf("Server starting on port %s (HTTPS) for app.magnumsolusion.co.id", port)
+		log.Fatal(app.ListenTLS(":"+port, filepath.Join(certDir, "cert.pem"), filepath.Join(certDir, "key.pem")))
+	}
 }

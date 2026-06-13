@@ -5,11 +5,14 @@ import (
 	"backend/internal/models"
 	"backend/internal/repository"
 	"backend/internal/utils"
+	"fmt"
 	"log"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -53,7 +56,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	if user.Inisial != nil {
 		inisial = *user.Inisial
 	}
-	token, err := config.GenerateJWT(int64(user.ID), user.Email, inisial)
+	token, err := config.GenerateJWT(int64(user.ID), user.Email, inisial, user.UserGroupID)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to generate token")
 	}
@@ -186,8 +189,88 @@ func (h *AuthHandler) UpdateProfile(c *fiber.Ctx) error {
 	})
 }
 
+func (h *AuthHandler) UploadProfileAvatar(c *fiber.Ctx) error {
+	loggedInUserID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		return utils.ErrorResponse(c, fiber.StatusUnauthorized, "Unauthorized")
+	}
+
+	file, err := c.FormFile("avatar")
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "No file uploaded: "+err.Error())
+	}
+
+	if msg := utils.ValidateFile(file, utils.AllowedImageExts(), 2*1024*1024); msg != "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, msg)
+	}
+
+	extension := filepath.Ext(file.Filename)
+	newFilename := fmt.Sprintf("%s%s", uuid.New().String(), extension)
+	savePath := filepath.Join("uploads", "avatars", newFilename)
+
+	if err := c.SaveFile(file, savePath); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to save file")
+	}
+
+	user, err := h.userRepo.FindByID(loggedInUserID)
+	if err != nil || user == nil {
+		return utils.ErrorResponse(c, fiber.StatusNotFound, "User not found")
+	}
+
+	fileURL := fmt.Sprintf("%s/%s", c.BaseURL(), filepath.ToSlash(savePath))
+	user.Avatar = &fileURL
+	if err := h.userRepo.Update(user); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to update avatar")
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+		"message": "Avatar uploaded successfully",
+		"url":     fileURL,
+	})
+}
+
+func (h *AuthHandler) UploadProfileSignature(c *fiber.Ctx) error {
+	loggedInUserID, ok := c.Locals("user_id").(uint)
+	if !ok {
+		return utils.ErrorResponse(c, fiber.StatusUnauthorized, "Unauthorized")
+	}
+
+	file, err := c.FormFile("signature")
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "No file uploaded")
+	}
+
+	if msg := utils.ValidateFile(file, utils.AllowedImageExts(), 1*1024*1024); msg != "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, msg)
+	}
+
+	extension := filepath.Ext(file.Filename)
+	newFilename := fmt.Sprintf("%s%s", uuid.New().String(), extension)
+	savePath := filepath.Join("uploads", "signatures", newFilename)
+
+	if err := c.SaveFile(file, savePath); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to save file")
+	}
+
+	user, err := h.userRepo.FindByID(loggedInUserID)
+	if err != nil || user == nil {
+		return utils.ErrorResponse(c, fiber.StatusNotFound, "User not found")
+	}
+
+	fileURL := fmt.Sprintf("%s/%s", c.BaseURL(), filepath.ToSlash(savePath))
+	user.Sign = &fileURL
+	if err := h.userRepo.Update(user); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to update signature")
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+		"message": "Signature uploaded successfully",
+		"url":     fileURL,
+	})
+}
+
 func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
-	_, ok := c.Locals("user_id").(uint)
+	loggedInUserID, ok := c.Locals("user_id").(uint)
 	if !ok {
 		return utils.ErrorResponse(c, fiber.StatusUnauthorized, "Unauthorized")
 	}
@@ -196,6 +279,10 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 	targetUserID, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid ID format")
+	}
+
+	if uint(targetUserID) != loggedInUserID {
+		return utils.ErrorResponse(c, fiber.StatusForbidden, "You can only change your own password")
 	}
 
 	user, err := h.userRepo.FindByID(uint(targetUserID))

@@ -142,18 +142,29 @@ func (h *UserHandler) Update(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusNotFound, "User not found")
 	}
 
-	user.Name = req.Name
-	user.Email = req.Email
-	user.PhoneNo = req.PhoneNo
-	user.DepartementID = req.DepartementID
-	user.Inisial = req.Inisial
-
 	// Only admins (user_group_id == 1) can change role, property, or enable/disable users
-	currentUserGroupID := c.Locals("user_group_id")
-	if currentUserGroupID != nil && currentUserGroupID.(uint) == 1 {
-		user.UserGroupID = req.UserGroupID
-		user.PropertyID = req.PropertyID
-		user.Enable = req.Enable
+	currentUserID := c.Locals("user_id").(uint)
+	var currentUser models.User
+
+	hrAdmin := false
+	if err := h.repo.GetDB().First(&currentUser, currentUserID).Error; err == nil {
+		hrAdmin = currentUser.UserGroupID != nil && *currentUser.UserGroupID == 1
+	}
+
+	// Build update map (avoids GORM association issues with Save on preloaded models)
+	updates := map[string]interface{}{
+		"name":           req.Name,
+		"email":          req.Email,
+		"phone_no":       req.PhoneNo,
+		"departement_id": req.DepartementID,
+		"inisial":        req.Inisial,
+		"user_update":    int64(currentUserID),
+	}
+
+	if hrAdmin {
+		updates["user_group_id"] = req.UserGroupID
+		updates["property_id"] = req.PropertyID
+		updates["enable"] = req.Enable
 	}
 
 	if req.Password != "" {
@@ -161,16 +172,11 @@ func (h *UserHandler) Update(c *fiber.Ctx) error {
 		if err != nil {
 			return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to hash password")
 		}
-		user.Password = hashedPassword
+		updates["password"] = hashedPassword
 	}
 
-	// Audit fields
-	userID := c.Locals("user_id").(uint)
-	user.UserUpdate = int64(userID)
-
-	// Use transaction
 	err = h.repo.GetDB().Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(user).Error; err != nil {
+		if err := tx.Model(&models.User{}).Where("id = ?", user.ID).Updates(updates).Error; err != nil {
 			return err
 		}
 		return nil

@@ -13,7 +13,7 @@ func NewCustomerRepository(db *gorm.DB) *CustomerRepository {
 	return &CustomerRepository{db: db}
 }
 
-func (r *CustomerRepository) FindAll(search string, page, limit int, sortBy, sortDir string) ([]models.Customer, int64, error) {
+func (r *CustomerRepository) FindAll(search string, page, limit int, sortBy, sortDir string, enable string) ([]models.Customer, int64, error) {
 	var customers []models.Customer
 	var total int64
 
@@ -24,6 +24,12 @@ func (r *CustomerRepository) FindAll(search string, page, limit int, sortBy, sor
 	if search != "" {
 		searchTerm := "%" + search + "%"
 		query = query.Where("customer.name LIKE ? OR customer.email LIKE ? OR customer.phone LIKE ?", searchTerm, searchTerm, searchTerm)
+	}
+
+	if enable == "1" {
+		query = query.Where("customer.enable = 1")
+	} else if enable == "0" {
+		query = query.Where("customer.enable = 0")
 	}
 
 	query.Count(&total)

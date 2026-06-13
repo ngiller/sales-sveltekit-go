@@ -146,6 +146,40 @@ func (h *QuotationFollowupHandler) Delete(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to delete follow-up")
 	}
 
+	// Check remaining follow-ups
+	var count int64
+	h.repo.GetDB().Model(&models.QuotationFollowup{}).Where("id = ?", quotationID).Count(&count)
+
+	if count == 0 {
+		// No follow-ups left → revert to "On Progress" (status=1) and "Lead" (progress=2)
+		h.repo.GetDB().Model(&models.Quotation{}).Where("id = ?", quotationID).Updates(map[string]interface{}{
+			"status":   1,
+			"progress": 2,
+		})
+	} else {
+		// Get the last follow-up (highest line_id) and sync its status/progress to quotation
+		var last struct {
+			Status   *uint `json:"status"`
+			Progress *uint `json:"progress"`
+		}
+		h.repo.GetDB().Model(&models.QuotationFollowup{}).
+			Select("status, progress").
+			Where("id = ?", quotationID).
+			Order("line_id DESC").
+			Limit(1).
+			Take(&last)
+		updates := map[string]interface{}{}
+		if last.Status != nil {
+			updates["status"] = *last.Status
+		}
+		if last.Progress != nil {
+			updates["progress"] = *last.Progress
+		}
+		if len(updates) > 0 {
+			h.repo.GetDB().Model(&models.Quotation{}).Where("id = ?", quotationID).Updates(updates)
+		}
+	}
+
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{"message": "Follow-up successfully deleted"})
 }
 
@@ -190,7 +224,7 @@ type FollowupReportItem struct {
 	CustomerName  string     `json:"customer_name"`
 	Subject       *string    `json:"subject"`
 	ProgressName  *string    `json:"progress_name"`
-	GrandTotal    float64    `json:"grand_total"`
+	GrandTotal    *float64   `json:"grand_total"`
 	SalesPerson   *string    `json:"sales_person"`
 }
 
@@ -264,11 +298,19 @@ func (h *QuotationFollowupHandler) FollowupsReport(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve followup report: "+err.Error())
 	}
 
+	var userItems []struct {
+		ID      uint    `json:"id"`
+		Name    string  `json:"name"`
+		Inisial *string `json:"inisial"`
+	}
+	h.repo.GetDB().Model(&models.User{}).Select("id, name, inisial").Order("name ASC").Find(&userItems)
+
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
 		"items": items,
 		"total": total,
 		"page":  page,
 		"limit": limit,
+		"users": userItems,
 	})
 }
 
@@ -339,9 +381,14 @@ func (h *QuotationFollowupHandler) FollowupsReportExport(c *fiber.Ctx) error {
 			salesPerson = *item.SalesPerson
 		}
 
+		grandTotal := 0.0
+		if item.GrandTotal != nil {
+			grandTotal = *item.GrandTotal
+		}
+
 		values := []interface{}{
 			item.QuotationID, quotationDate, nextFollowup, item.CustomerName,
-			subject, progressName, item.GrandTotal, salesPerson,
+			subject, progressName, grandTotal, salesPerson,
 		}
 
 		for j, val := range values {

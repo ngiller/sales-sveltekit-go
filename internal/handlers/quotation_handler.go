@@ -6,7 +6,6 @@ import (
 	"backend/internal/utils"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -22,7 +21,112 @@ func NewQuotationHandler(repo *repository.QuotationRepository) *QuotationHandler
 	return &QuotationHandler{repo: repo}
 }
 
+func (h *QuotationHandler) fetchDropdownData() (*fiber.Map, error) {
+	db := h.repo.GetDB()
+
+	var users []models.User
+	var customers []models.Customer
+	var paymentTerms []models.PaymentTerm
+	var projectLevels []models.ProjectLevel
+	var progress []models.QuotationProgress
+	var statuses []models.QuotationStatus
+	var units []models.Unit
+	var categories []models.CustomerCategory
+
+	if err := db.Where("enable = ?", "1").Find(&users).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Where("enable = ?", "1").Find(&customers).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Find(&paymentTerms).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Find(&projectLevels).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Find(&progress).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Find(&statuses).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Find(&units).Error; err != nil {
+		return nil, err
+	}
+	if err := db.Find(&categories).Error; err != nil {
+		return nil, err
+	}
+
+	return &fiber.Map{
+		"users":          users,
+		"customers":      customers,
+		"payment_terms":  paymentTerms,
+		"project_levels": projectLevels,
+		"progress":       progress,
+		"statuses":       statuses,
+		"units":          units,
+		"categories":     categories,
+	}, nil
+}
+
+func (h *QuotationHandler) New(c *fiber.Ctx) error {
+	dropdownData, err := h.fetchDropdownData()
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve dropdown data: "+err.Error())
+	}
+	return utils.SuccessResponse(c, fiber.StatusOK, *dropdownData)
+}
+
+func (h *QuotationHandler) fetchReportSalesPersons(userID uint) []fiber.Map {
+	canViewAll := h.userCanViewAllQuotations(userID)
+
+	var users []models.User
+	query := h.repo.GetDB().Model(&models.User{}).Select("id, name, inisial")
+	if !canViewAll {
+		query = query.Where("id = ?", userID)
+	}
+	query.Find(&users)
+
+	result := make([]fiber.Map, len(users))
+	for i, u := range users {
+		result[i] = fiber.Map{
+			"id":      u.ID,
+			"name":    u.Name,
+			"inisial": u.Inisial,
+		}
+	}
+	return result
+}
+
+func (h *QuotationHandler) userCanViewAllQuotations(userID uint) bool {
+	var user models.User
+	if err := h.repo.GetDB().Select("user_group_id").First(&user, userID).Error; err != nil {
+		return false
+	}
+
+	// Admin bypass
+	if user.UserGroupID != nil && *user.UserGroupID == 1 {
+		return true
+	}
+
+	// Check for view_all policy on quotations endpoint
+	var table models.MasterTableAccess
+	if err := h.repo.GetDB().Where("endpoint = ?", "quotations").First(&table).Error; err != nil {
+		return false
+	}
+
+	var count int64
+	h.repo.GetDB().Model(&models.GroupPolicy{}).
+		Where("group_id = ? AND action = ? AND (table_name = ? OR table_id = ?)",
+			*user.UserGroupID, "view_all", table.Name, table.ID).
+		Count(&count)
+	return count > 0
+}
+
 func (h *QuotationHandler) FindAll(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
 	search := c.Query("search")
 	fromDate := c.Query("from_date")
 	toDate := c.Query("to_date")
@@ -38,6 +142,11 @@ func (h *QuotationHandler) FindAll(c *fiber.Ctx) error {
 	sortBy := c.Query("sort")
 	sortDir := c.Query("order")
 
+	canViewAll := h.userCanViewAllQuotations(userID)
+	if !canViewAll {
+		userCreated = strconv.FormatUint(uint64(userID), 10)
+	}
+
 	items, total, err := h.repo.FindAll(search, fromDate, toDate, qType, status, userCreated, progress, page, limit, sortBy, sortDir)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve quotations: "+err.Error())
@@ -45,10 +154,11 @@ func (h *QuotationHandler) FindAll(c *fiber.Ctx) error {
 
 
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
-		"items": items,
-		"total": total,
-		"page":  page,
-		"limit": limit,
+		"items":        items,
+		"total":        total,
+		"page":         page,
+		"limit":        limit,
+		"can_view_all": canViewAll,
 	})
 }
 
@@ -67,16 +177,26 @@ func (h *QuotationHandler) FindByID(c *fiber.Ctx) error {
 	// but we still fetch them separately for the frontend's legacy structure if needed
 	// Find the default revID from revisions
 
+	dropdownData, err := h.fetchDropdownData()
+	if err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve dropdown data: "+err.Error())
+	}
+
 	details := quotation.Details
 	subdetails := quotation.Subdetails
 	revisions := quotation.Revisions
 
-	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+	result := fiber.Map{
 		"quotation":  quotation,
 		"details":    details,
 		"subdetails": subdetails,
 		"revisions":  revisions,
-	})
+	}
+	for k, v := range *dropdownData {
+		result[k] = v
+	}
+
+	return utils.SuccessResponse(c, fiber.StatusOK, result)
 }
 
 type QuotationCreateUpdateInput struct {
@@ -226,7 +346,7 @@ func (h *QuotationHandler) Create(c *fiber.Ctx) error {
 	}
 
 	userInisialStr := "USR"
-	if inisial, ok := userInisial.(string); ok {
+	if inisial, ok := userInisial.(string); ok && inisial != "" {
 		userInisialStr = inisial
 	}
 	quotationID := repository.GenerateQuotationID(input.QuotationType, counter, month, year, userInisialStr)
@@ -627,12 +747,12 @@ func (h *QuotationHandler) CreateRevision(c *fiber.Ctx) error {
 	}
 
 	userInisialStr := "USR"
-	if inisial, ok := userInisial.(string); ok {
+	if inisial, ok := userInisial.(string); ok && inisial != "" {
 		userInisialStr = inisial
 	}
 	newQuotationID := repository.GenerateQuotationID(oldQ.QuotationType, counter, month, year, userInisialStr)
 
-	err = h.repo.CreateRevision(oldID, newID, newQuotationID, now, uid, userInisialStr)
+	err = h.repo.CreateRevision(oldID, newID, newQuotationID, now, uid, userInisialStr, "[REVISION] ")
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to create revision: "+err.Error())
 	}
@@ -685,13 +805,12 @@ func (h *QuotationHandler) Duplicate(c *fiber.Ctx) error {
 	}
 
 	userInisialStr := "USR"
-	if inisial, ok := userInisial.(string); ok {
+	if inisial, ok := userInisial.(string); ok && inisial != "" {
 		userInisialStr = inisial
 	}
 	newQuotationID := repository.GenerateQuotationID(oldQ.QuotationType, counter, month, year, userInisialStr)
 
-	// Duplicate is same as CreateRevision for now, but we could change the subject prefix in repo if needed
-	err = h.repo.CreateRevision(oldID, newID, newQuotationID, now, uid, userInisialStr)
+	err = h.repo.CreateRevision(oldID, newID, newQuotationID, now, uid, userInisialStr, "[DUPLICATE] ")
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to duplicate: "+err.Error())
 	}
@@ -720,6 +839,7 @@ func (h *QuotationHandler) SetDefault(c *fiber.Ctx) error {
 }
 
 func (h *QuotationHandler) ExportExcel(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
 	search := c.Query("search")
 	fromDate := c.Query("from_date")
 	toDate := c.Query("to_date")
@@ -730,6 +850,10 @@ func (h *QuotationHandler) ExportExcel(c *fiber.Ctx) error {
 		userCreated = c.Query("user_created")
 	}
 	progress := c.Query("progress")
+
+	if !h.userCanViewAllQuotations(userID) {
+		userCreated = strconv.FormatUint(uint64(userID), 10)
+	}
 
 	page := 1
 	limit := 100000 // Get all
@@ -889,7 +1013,7 @@ func (h *QuotationHandler) topCustomersByType(c *fiber.Ctx, fromDate, toDate str
 			COALESCE(SUM(m.profit_value), 0) AS profit,
 			COALESCE(SUM(m.grand_total * COALESCE(m.profit, 0)) / NULLIF(SUM(m.grand_total), 0), 0) AS profit_percent
 		FROM quotation q
-		JOIN quotation_master m ON m.id = q.id AND m.default_quot = 1
+		JOIN quotation_master m ON m.id COLLATE utf8mb4_general_ci = q.id AND m.default_quot = 1
 		JOIN customer c ON c.id = q.customer_id
 		WHERE q.quotation_type = ?
 			AND q.status = 3
@@ -1036,7 +1160,7 @@ func (h *QuotationHandler) buildReportQuery(fromDate, toDate string, qType *int,
 			q.grand_total, qm.profit, qm.profit_value`).
 		Joins("JOIN customer c ON c.id = q.customer_id").
 		Joins("LEFT JOIN quotation_progress qp ON qp.id = q.progress").
-		Joins("LEFT JOIN quotation_master qm ON qm.id = q.id AND qm.default_quot = 1").
+		Joins("LEFT JOIN quotation_master qm ON qm.id COLLATE utf8mb4_general_ci = q.id AND qm.default_quot = 1").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate)
 
 	if qType != nil {
@@ -1116,6 +1240,8 @@ func (h *QuotationHandler) QuotationsReport(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve project quotations: "+err.Error())
 	}
 
+	users := h.fetchReportSalesPersons(c.Locals("user_id").(uint))
+
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
 		"all":           all,
 		"retail":        retail,
@@ -1125,6 +1251,7 @@ func (h *QuotationHandler) QuotationsReport(c *fiber.Ctx) error {
 		"project_total": projectTotal,
 		"page":          page,
 		"limit":         limit,
+		"users":         users,
 	})
 }
 
@@ -1142,23 +1269,24 @@ func (h *QuotationHandler) ReportSection(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "20"))
 
-	if fromDate == "" || toDate == "" || section == "" {
-		return utils.ErrorResponse(c, fiber.StatusBadRequest, "from_date, to_date, and section are required")
+	if fromDate == "" || toDate == "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "from_date and to_date are required")
 	}
 
 	var qType *int
-	if section == "retail" {
-		v := 2
-		qType = &v
-	} else if section == "project" {
-		v := 1
-		qType = &v
+	switch section {
+	case "project":
+		t := 1
+		qType = &t
+	case "retail":
+		t := 2
+		qType = &t
 	}
 
 	var items []QuotationReportItem
 	q, total := h.buildReportQuery(fromDate, toDate, qType, search, status, userCreated, progress, page, limit)
 	if err := q.Find(&items).Error; err != nil {
-		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve section: "+err.Error())
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve report section: "+err.Error())
 	}
 
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
@@ -1169,52 +1297,45 @@ func (h *QuotationHandler) ReportSection(c *fiber.Ctx) error {
 	})
 }
 
-func (h *QuotationHandler) writeReportSheet(f *excelize.File, sheetName string, items []QuotationReportItem) {
-	f.SetCellValue(sheetName, "A1", "quotation_id")
-	f.SetCellValue(sheetName, "B1", "quotation_date")
-	f.SetCellValue(sheetName, "C1", "customer_name")
-	f.SetCellValue(sheetName, "D1", "subject")
-	f.SetCellValue(sheetName, "E1", "progress_name")
-	f.SetCellValue(sheetName, "F1", "grand_total")
-	f.SetCellValue(sheetName, "G1", "profit")
-	f.SetCellValue(sheetName, "H1", "profit_value")
-
+func (h *QuotationHandler) writeReportSheet(f *excelize.File, sheet string, items []QuotationReportItem) {
+	headers := []string{
+		"quotation_id", "quotation_date", "customer_name",
+		"subject", "progress_name", "grand_total", "profit", "profit_value",
+	}
+	for i, header := range headers {
+		colName, _ := excelize.ColumnNumberToName(i + 1)
+		f.SetCellValue(sheet, colName+"1", header)
+	}
 	for i, item := range items {
 		row := i + 2
-
 		qDate := ""
 		if item.QuotationDate != nil {
-			qDate = strings.ReplaceAll(*item.QuotationDate, "-", "/")
+			qDate = *item.QuotationDate
 		}
-
 		subject := ""
 		if item.Subject != nil {
 			subject = *item.Subject
 		}
-
 		progressName := ""
 		if item.ProgressName != nil {
 			progressName = *item.ProgressName
 		}
-
-		profit := 0.0
+		profit := float64(0)
 		if item.Profit != nil {
 			profit = *item.Profit
 		}
-
-		profitValue := 0.0
+		profitValue := float64(0)
 		if item.ProfitValue != nil {
 			profitValue = *item.ProfitValue
 		}
-
-		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), item.QuotationID)
-		f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), qDate)
-		f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), item.CustomerName)
-		f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), subject)
-		f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), progressName)
-		f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), item.GrandTotal)
-		f.SetCellValue(sheetName, fmt.Sprintf("G%d", row), profit)
-		f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), profitValue)
+		values := []interface{}{
+			item.QuotationID, qDate, item.CustomerName,
+			subject, progressName, item.GrandTotal, profit, profitValue,
+		}
+		for j, val := range values {
+			colName, _ := excelize.ColumnNumberToName(j + 1)
+			f.SetCellValue(sheet, fmt.Sprintf("%s%d", colName, row), val)
+		}
 	}
 }
 
@@ -1427,7 +1548,7 @@ type SalesSummaryBySalesPersonItem struct {
 	MarginPercent   float64    `json:"margin_percent"`
 }
 
-func (h *QuotationHandler) buildSalesSummaryBySalesPersonQuery(fromDate, toDate, search, quotationType string, page, limit int) (*gorm.DB, int64) {
+func (h *QuotationHandler) buildSalesSummaryBySalesPersonQuery(fromDate, toDate, search, salesId, quotationType string, page, limit int) (*gorm.DB, int64) {
 	query := h.repo.GetDB().Table("quotation q").
 		Select(`MAX(q.quotation_date) AS quotation_date,
 			MAX(q.quotation_type) AS quotation_type_id,
@@ -1454,6 +1575,12 @@ func (h *QuotationHandler) buildSalesSummaryBySalesPersonQuery(fromDate, toDate,
 		query = query.Where("(u.name LIKE ?)", searchTerm)
 	}
 
+	if salesId != "" && salesId != "all" {
+		if val, err := strconv.Atoi(salesId); err == nil {
+			query = query.Where("q.sales_id = ?", val)
+		}
+	}
+
 	if quotationType != "" && quotationType != "all" {
 		if val, err := strconv.Atoi(quotationType); err == nil {
 			query = query.Where("q.quotation_type = ?", val)
@@ -1473,9 +1600,14 @@ func (h *QuotationHandler) buildSalesSummaryBySalesPersonQuery(fromDate, toDate,
 }
 
 func (h *QuotationHandler) SalesSummaryBySalesPerson(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
 	fromDate := c.Query("from_date")
 	toDate := c.Query("to_date")
 	search := c.Query("search")
+	salesId := c.Query("sales_id")
+	if salesId == "" {
+		salesId = c.Query("user_created")
+	}
 	quotationType := c.Query("quotation_type")
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "10"))
@@ -1485,16 +1617,19 @@ func (h *QuotationHandler) SalesSummaryBySalesPerson(c *fiber.Ctx) error {
 	}
 
 	var items []SalesSummaryBySalesPersonItem
-	q, total := h.buildSalesSummaryBySalesPersonQuery(fromDate, toDate, search, quotationType, page, limit)
+	q, total := h.buildSalesSummaryBySalesPersonQuery(fromDate, toDate, search, salesId, quotationType, page, limit)
 	if err := q.Find(&items).Error; err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve sales summary: "+err.Error())
 	}
+
+	users := h.fetchReportSalesPersons(userID)
 
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
 		"items": items,
 		"total": total,
 		"page":  page,
 		"limit": limit,
+		"users": users,
 	})
 }
 
@@ -1502,6 +1637,10 @@ func (h *QuotationHandler) SalesSummaryBySalesPersonExport(c *fiber.Ctx) error {
 	fromDate := c.Query("from_date")
 	toDate := c.Query("to_date")
 	search := c.Query("search")
+	salesId := c.Query("sales_id")
+	if salesId == "" {
+		salesId = c.Query("user_created")
+	}
 	quotationType := c.Query("quotation_type")
 
 	if fromDate == "" || toDate == "" {
@@ -1509,7 +1648,7 @@ func (h *QuotationHandler) SalesSummaryBySalesPersonExport(c *fiber.Ctx) error {
 	}
 
 	var items []SalesSummaryBySalesPersonItem
-	q, _ := h.buildSalesSummaryBySalesPersonQuery(fromDate, toDate, search, quotationType, 1, 0)
+	q, _ := h.buildSalesSummaryBySalesPersonQuery(fromDate, toDate, search, salesId, quotationType, 1, 0)
 	if err := q.Find(&items).Error; err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve sales summary: "+err.Error())
 	}
@@ -1642,6 +1781,7 @@ func (h *QuotationHandler) buildSalesDetailQuery(fromDate, toDate, search, sales
 }
 
 func (h *QuotationHandler) SalesDetailByCustomer(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
 	fromDate := c.Query("from_date")
 	toDate := c.Query("to_date")
 	search := c.Query("search")
@@ -1664,11 +1804,14 @@ func (h *QuotationHandler) SalesDetailByCustomer(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve sales detail: "+err.Error())
 	}
 
+	users := h.fetchReportSalesPersons(userID)
+
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
 		"items": items,
 		"total": total,
 		"page":  page,
 		"limit": limit,
+		"users": users,
 	})
 }
 
@@ -1774,7 +1917,7 @@ func (h *QuotationHandler) buildSalesDetailBySalesPersonQuery(fromDate, toDate, 
 
 	if search != "" {
 		searchTerm := "%" + search + "%"
-		query = query.Where("(COALESCE(qd.part_no,'') LIKE ? OR COALESCE(qd.descriptions,'') LIKE ?)", searchTerm, searchTerm)
+		query = query.Where("(q.quotation_id LIKE ? OR q.subject LIKE ? OR c.name LIKE ?)", searchTerm, searchTerm, searchTerm)
 	}
 
 	if salesId != "" && salesId != "all" {
@@ -1793,7 +1936,7 @@ func (h *QuotationHandler) buildSalesDetailBySalesPersonQuery(fromDate, toDate, 
 	countQuery := h.repo.GetDB().Table("(?) AS sub", query)
 	countQuery.Count(&total)
 
-	ordered := query.Order("COALESCE(qd.part_no,'') ASC, COALESCE(qd.descriptions,'') ASC")
+	ordered := query.Order("q.quotation_date ASC, q.quotation_id ASC")
 
 	if limit > 0 {
 		ordered = ordered.Offset((page - 1) * limit).Limit(limit)
@@ -1803,6 +1946,7 @@ func (h *QuotationHandler) buildSalesDetailBySalesPersonQuery(fromDate, toDate, 
 }
 
 func (h *QuotationHandler) SalesDetailBySalesPerson(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
 	fromDate := c.Query("from_date")
 	toDate := c.Query("to_date")
 	search := c.Query("search")
@@ -1824,11 +1968,14 @@ func (h *QuotationHandler) SalesDetailBySalesPerson(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve sales detail: "+err.Error())
 	}
 
+	users := h.fetchReportSalesPersons(userID)
+
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
 		"items": items,
 		"total": total,
 		"page":  page,
 		"limit": limit,
+		"users": users,
 	})
 }
 
@@ -1935,8 +2082,8 @@ func (h *QuotationHandler) buildSalesItemByCustomerQuery(fromDate, toDate, searc
 			CASE WHEN COALESCE(SUM(qd.total),0) = 0 THEN 0
 				ELSE ROUND((COALESCE(SUM(qd.total),0) - COALESCE(SUM(qd.hpp_total),0)) / COALESCE(SUM(qd.total),0) * 100, 2)
 			END AS margin_percent`).
-		Joins("JOIN quotation q ON q.id = qd.id").
-		Joins("JOIN quotation_master qm ON qm.id = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
+		Joins("JOIN quotation q ON q.id COLLATE utf8mb4_general_ci = qd.id").
+		Joins("JOIN quotation_master qm ON qm.id COLLATE utf8mb4_general_ci = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
 		Joins("LEFT JOIN users u ON u.id = q.sales_id").
 		Where("q.status = 3").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate).
@@ -2080,8 +2227,8 @@ func (h *QuotationHandler) buildSalesItemBySalesPersonQuery(fromDate, toDate, se
 			CASE WHEN COALESCE(SUM(qd.total),0) = 0 THEN 0
 				ELSE ROUND((COALESCE(SUM(qd.total),0) - COALESCE(SUM(qd.hpp_total),0)) / COALESCE(SUM(qd.total),0) * 100, 2)
 			END AS margin_percent`).
-		Joins("JOIN quotation q ON q.id = qd.id").
-		Joins("JOIN quotation_master qm ON qm.id = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
+		Joins("JOIN quotation q ON q.id COLLATE utf8mb4_general_ci = qd.id").
+		Joins("JOIN quotation_master qm ON qm.id COLLATE utf8mb4_general_ci = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
 		Joins("LEFT JOIN users u ON u.id = q.sales_id").
 		Where("q.status = 3").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate).
@@ -2112,6 +2259,7 @@ func (h *QuotationHandler) buildSalesItemBySalesPersonQuery(fromDate, toDate, se
 }
 
 func (h *QuotationHandler) SalesItemBySalesPerson(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
 	fromDate := c.Query("from_date")
 	toDate := c.Query("to_date")
 	search := c.Query("search")
@@ -2132,11 +2280,14 @@ func (h *QuotationHandler) SalesItemBySalesPerson(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve sales item data: "+err.Error())
 	}
 
+	users := h.fetchReportSalesPersons(userID)
+
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
 		"items": items,
 		"total": total,
 		"page":  page,
 		"limit": limit,
+		"users": users,
 	})
 }
 
@@ -2223,6 +2374,12 @@ type SalesChartMonthlyItem struct {
 	GrandTotal float64 `json:"grand_total"`
 }
 
+type SalesChartMonthlySeriesItem struct {
+	Month      string  `json:"month"`
+	GrandTotal float64 `json:"grand_total"`
+	StatusName string  `json:"status_name"`
+}
+
 type SalesChartItemDetail struct {
 	PartNo     *string `json:"part_no"`
 	TotalQty   float64 `json:"total_qty"`
@@ -2255,8 +2412,8 @@ func (h *QuotationHandler) SalesChartsByCustomer(c *fiber.Ctx) error {
 	var items []SalesChartItemDetail
 	if err := h.repo.GetDB().Table("quotation_detail qd").
 		Select(`qd.part_no, COALESCE(SUM(qd.qty),0) AS total_qty, COALESCE(SUM(qd.total),0) AS total_sales`).
-		Joins("JOIN quotation q ON q.id = qd.id").
-		Joins("JOIN quotation_master qm ON qm.id = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
+		Joins("JOIN quotation q ON q.id COLLATE utf8mb4_general_ci = qd.id").
+		Joins("JOIN quotation_master qm ON qm.id COLLATE utf8mb4_general_ci = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
 		Where("q.customer_id = ?", customerID).
 		Where("q.status = 3").
 		Where("YEAR(q.quotation_date) = ?", year).
@@ -2281,29 +2438,67 @@ type SalesChartsBySalesPersonItem struct {
 }
 
 func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(uint)
+
 	salesID := c.Query("sales_id")
 	if salesID == "" {
 		salesID = c.Query("user_created")
 	}
 	year := c.Query("year")
 
+	users := h.fetchReportSalesPersons(userID)
+
 	if salesID == "" {
-		return utils.ErrorResponse(c, fiber.StatusBadRequest, "sales_id is required")
+		return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
+			"monthly":           []SalesChartMonthlySeriesItem{},
+			"items":             []SalesChartsBySalesPersonItem{},
+			"on_progress_items": []SalesChartsBySalesPersonItem{},
+			"users":             users,
+		})
 	}
 	if year == "" {
 		year = strconv.Itoa(time.Now().Year())
 	}
 
-	var monthly []SalesChartMonthlyItem
-	if err := h.repo.GetDB().Table("quotation").
-		Select(`DATE_FORMAT(quotation_date, '%Y-%m') AS month, COALESCE(SUM(grand_total),0) AS grand_total`).
-		Where("user_created = ?", salesID).
-		Where("status = 3").
-		Where("YEAR(quotation_date) = ?", year).
-		Group("month").
-		Order("month ASC").
-		Find(&monthly).Error; err != nil {
-		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve chart data: "+err.Error())
+	type statusFilter struct {
+		Name string
+	}
+	statuses := []statusFilter{
+		{Name: "All Quotation"},
+		{Name: "On Progress"},
+		{Name: "P.O."},
+		{Name: "Cancel"},
+		{Name: "Decline"},
+	}
+	// Map status names to IDs
+	statusIDs := map[string]int{
+		"On Progress": 1,
+		"Decline":     2,
+		"P.O.":        3,
+		"Cancel":      4,
+	}
+
+	var monthly []SalesChartMonthlySeriesItem
+	for _, sf := range statuses {
+		q := h.repo.GetDB().Table("quotation").
+			Select(`DATE_FORMAT(quotation_date, '%Y-%m') AS month, COALESCE(SUM(grand_total),0) AS grand_total`).
+			Where("user_created = ?", salesID).
+			Where("YEAR(quotation_date) = ?", year).
+			Group("month").
+			Order("month ASC")
+		if sf.Name == "All Quotation" {
+			// All statuses
+		} else if id, ok := statusIDs[sf.Name]; ok {
+			q = q.Where("status = ?", id)
+		}
+		var rows []SalesChartMonthlySeriesItem
+		if err := q.Find(&rows).Error; err != nil {
+			return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve chart data: "+err.Error())
+		}
+		for i := range rows {
+			rows[i].StatusName = sf.Name
+		}
+		monthly = append(monthly, rows...)
 	}
 
 	var items []SalesChartsBySalesPersonItem
@@ -2319,9 +2514,24 @@ func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve item details: "+err.Error())
 	}
 
+	var onProgressItems []SalesChartsBySalesPersonItem
+	if err := h.repo.GetDB().Table("quotation q").
+		Select(`c.name AS customer_name, COALESCE(SUM(q.grand_total),0) AS grand_total, COALESCE(SUM(q.hpp_total),0) AS hpp_total, COALESCE(SUM(q.grand_total - q.hpp_total),0) AS profit_value, CASE WHEN SUM(q.grand_total) > 0 THEN ROUND((SUM(q.grand_total - q.hpp_total) / SUM(q.grand_total)) * 100, 2) ELSE 0 END AS margin_percent`).
+		Joins("JOIN customer c ON c.id = q.customer_id").
+		Where("q.user_created = ?", salesID).
+		Where("q.status = 1").
+		Where("YEAR(q.quotation_date) = ?", year).
+		Group("c.id, c.name").
+		Order("grand_total DESC").
+		Find(&onProgressItems).Error; err != nil {
+		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to retrieve on progress details: "+err.Error())
+	}
+
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
-		"monthly": monthly,
-		"items":   items,
+		"monthly":           monthly,
+		"items":             items,
+		"on_progress_items": onProgressItems,
+		"users":             users,
 	})
 }
 
