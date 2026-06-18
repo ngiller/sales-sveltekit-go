@@ -284,6 +284,7 @@ type Quotation struct {
 	PPh            float64          `gorm:"column:pph;default:0" json:"pph"`
 	PPhValue       float64          `gorm:"column:pph_value;default:0" json:"pph_value"`
 	Disc           *float64         `gorm:"column:disc" json:"disc"`
+	DiscValue      float64          `gorm:"column:disc_value;default:0" json:"disc_value"`
 	GrandTotal     *float64         `gorm:"column:grand_total" json:"grand_total"`
 	HppTotal       *float64         `gorm:"column:hpp_total" json:"hpp_total"`
 	Profit        *float64         `gorm:"column:profit" json:"profit"`
@@ -382,6 +383,7 @@ type QuotationMaster struct {
 	Subject       *string    `gorm:"column:subject" json:"subject"`
 	Total         *float64   `gorm:"column:total" json:"total"`
 	Disc          *float64   `gorm:"column:disc" json:"disc"`
+	DiscValue     float64    `gorm:"column:disc_value;default:0" json:"disc_value"`
 	Tax           *float64   `gorm:"column:tax" json:"tax"`
 	TaxValue      float64    `gorm:"column:tax_value;default:0" json:"tax_value"`
 	PPh           float64    `gorm:"column:pph;default:0" json:"pph"`

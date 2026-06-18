@@ -127,11 +127,40 @@ func (r *StockRepository) FindAllProducts(search string, categoryID, brandID str
 	return items, total, err
 }
 
+func (r *StockRepository) GetTotalStockQuantity(search string, categoryID, brandID string) (float64, error) {
+	var totalQty float64
+
+	sql := `
+		SELECT COALESCE(SUM(COALESCE(ps.end_stock, 0)), 0)
+		FROM product p
+		LEFT JOIN product_stock ps ON ps.product_id = p.id
+		WHERE 1=1
+	`
+	args := []interface{}{}
+
+	if search != "" {
+		sql += " AND (p.product_name LIKE ? OR p.product_code LIKE ?)"
+		searchTerm := "%" + search + "%"
+		args = append(args, searchTerm, searchTerm)
+	}
+	if categoryID != "" {
+		sql += " AND p.category_id = ?"
+		args = append(args, categoryID)
+	}
+	if brandID != "" {
+		sql += " AND p.brand_id = ?"
+		args = append(args, brandID)
+	}
+
+	err := r.db.Raw(sql, args...).Scan(&totalQty).Error
+	return totalQty, err
+}
+
 func (r *StockRepository) GetTotalStockValue(search string, categoryID, brandID string) (float64, error) {
 	var totalValue float64
 
 	sql := `
-		SELECT COALESCE(SUM(COALESCE(ps.end_stock, 0) * COALESCE(ps.last_selling_price, 0)), 0)
+		SELECT COALESCE(SUM(COALESCE(ps.end_stock, 0) * COALESCE(CAST(ps.last_buy_price AS DECIMAL(14,2)), 0)), 0)
 		FROM product p
 		LEFT JOIN product_stock ps ON ps.product_id = p.id
 		WHERE 1=1

@@ -166,6 +166,7 @@ func (r *QuotationRepository) FindByID(id string) (*models.Quotation, error) {
 	// Update item with master values for the default revision
 	item.Total = defaultMaster.Total
 	item.Disc = defaultMaster.Disc
+	item.DiscValue = defaultMaster.DiscValue
 	item.Tax = defaultMaster.Tax
 	item.TaxValue = defaultMaster.TaxValue
 	item.PPh = defaultMaster.PPh
@@ -298,6 +299,7 @@ func (r *QuotationRepository) Update(q *models.Quotation, details []models.Quota
 			updates := map[string]interface{}{
 				"total":        master.Total,
 				"disc":         master.Disc,
+				"disc_value":   master.DiscValue,
 				"tax":          master.Tax,
 				"tax_value":    master.TaxValue,
 				"pph":          master.PPh,
@@ -418,6 +420,7 @@ func (r *QuotationRepository) CreateRevision(oldID string, newID string, newQuot
 			Subject:       newQ.Subject,
 			Total:         newQ.Total,
 			Disc:         newQ.Disc,
+			DiscValue:    newQ.DiscValue,
 			Tax:           newQ.Tax,
 			TaxValue:      newQ.TaxValue,
 			PPh:          newQ.PPh,
@@ -520,6 +523,7 @@ func (r *QuotationRepository) SetDefault(id string, revID int) error {
 		updates := map[string]interface{}{
 			"total":        master.Total,
 			"disc":         master.Disc,
+			"disc_value":   master.DiscValue,
 			"tax":          master.Tax,
 			"tax_value":    master.TaxValue,
 			"pph":          master.PPh,

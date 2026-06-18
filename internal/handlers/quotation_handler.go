@@ -212,6 +212,7 @@ type QuotationCreateUpdateInput struct {
 	PPh           float64       `json:"pph"`
 	PPhValue      float64       `json:"pph_value"`
 	Disc          *float64      `json:"disc"`
+	DiscValue     float64       `json:"disc_value"`
 	GrandTotal    *float64      `json:"grand_total"`
 	HppTotal      *float64      `json:"hpp_total"`
 	Profit        *float64      `json:"profit"`
@@ -366,6 +367,7 @@ func (h *QuotationHandler) Create(c *fiber.Ctx) error {
 		PPh:           input.PPh,
 		PPhValue:      input.PPhValue,
 		Disc:          input.Disc,
+		DiscValue:     input.DiscValue,
 		GrandTotal:    input.GrandTotal,
 		HppTotal:      input.HppTotal,
 		Profit:        input.Profit,
@@ -466,6 +468,7 @@ func (h *QuotationHandler) Create(c *fiber.Ctx) error {
 		Subject:       input.Subject,
 		Total:         input.Total,
 		Disc:          input.Disc,
+		DiscValue:     input.DiscValue,
 		Tax:           input.Tax,
 		TaxValue:      input.TaxValue,
 		PPh:           input.PPh,
@@ -551,6 +554,7 @@ func (h *QuotationHandler) Update(c *fiber.Ctx) error {
 	existing.PPh = input.PPh
 	existing.PPhValue = input.PPhValue
 	existing.Disc = input.Disc
+	existing.DiscValue = input.DiscValue
 	existing.GrandTotal = input.GrandTotal
 	existing.HppTotal = input.HppTotal
 	existing.Profit = input.Profit
@@ -634,6 +638,7 @@ func (h *QuotationHandler) Update(c *fiber.Ctx) error {
 		Subject:       input.Subject,
 		Total:         input.Total,
 		Disc:          input.Disc,
+		DiscValue:     input.DiscValue,
 		Tax:           input.Tax,
 		TaxValue:      input.TaxValue,
 		PPh:           input.PPh,

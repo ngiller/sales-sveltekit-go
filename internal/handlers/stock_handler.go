@@ -38,18 +38,24 @@ func (h *StockHandler) GetAllProducts(c *fiber.Ctx) error {
 		item["grand_total"] = endStock * getFloatValue(item, "last_buy_price")
 	}
 
-	// Calculate total stock value across ALL products (not just current page)
+	// Calculate totals across ALL products (not just current page)
 	totalCogs, err := h.repo.GetTotalStockValue(search, categoryID, brandID)
 	if err != nil {
 		totalCogs = 0
 	}
 
+	totalQty, err := h.repo.GetTotalStockQuantity(search, categoryID, brandID)
+	if err != nil {
+		totalQty = 0
+	}
+
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{
-		"items":      items,
-		"total":      total,
-		"page":       page,
-		"limit":      limit,
-		"total_cogs": totalCogs,
+		"items":          items,
+		"total":          total,
+		"page":           page,
+		"limit":          limit,
+		"total_cogs":     totalCogs,
+		"total_quantity": totalQty,
 	})
 }
 
