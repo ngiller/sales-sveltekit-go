@@ -220,6 +220,7 @@ type QuotationCreateUpdateInput struct {
 	PaymentTermID *uint         `json:"payment_term_id"`
 	ValidUntil    *string       `json:"valid_until"`
 	Commision     float64       `json:"commision"`
+	CommisionValue float64      `json:"commision_value"`
 	Notes         *string       `json:"notes"`
 	Status        int           `json:"status"`
 	ProgressID    uint          `json:"progress_id"`
@@ -375,6 +376,7 @@ func (h *QuotationHandler) Create(c *fiber.Ctx) error {
 		PaymentTermID: input.PaymentTermID,
 		ValidUntil:    parseDate(input.ValidUntil),
 		Commision:     input.Commision,
+		CommisionValue: input.CommisionValue,
 		Notes:         input.Notes,
 		Status:        input.Status,
 		ProgressID:    input.ProgressID,
@@ -479,6 +481,7 @@ func (h *QuotationHandler) Create(c *fiber.Ctx) error {
 		PaymentTermID: input.PaymentTermID,
 		ValidUntil:    parseDate(input.ValidUntil),
 		Commision:     input.Commision,
+		CommisionValue: input.CommisionValue,
 		Notes:         input.Notes,
 		SalesID:       input.SalesID,
 		UserCreated:   &uid,
@@ -561,6 +564,7 @@ func (h *QuotationHandler) Update(c *fiber.Ctx) error {
 	existing.PaymentTermID = input.PaymentTermID
 	existing.ValidUntil = parseDate(input.ValidUntil)
 	existing.Commision = input.Commision
+	existing.CommisionValue = input.CommisionValue
 	existing.Notes = input.Notes
 	existing.Status = input.Status
 	// ProgressID is locked and can only be updated via follow up
@@ -650,6 +654,7 @@ func (h *QuotationHandler) Update(c *fiber.Ctx) error {
 		PaymentTermID: input.PaymentTermID,
 		ValidUntil:    parseDate(input.ValidUntil),
 		Commision:     input.Commision,
+		CommisionValue: input.CommisionValue,
 		Notes:         input.Notes,
 		SalesID:       input.SalesID,
 		UserCreated:   existing.UserCreated,

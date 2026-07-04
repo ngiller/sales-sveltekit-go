@@ -293,6 +293,7 @@ type Quotation struct {
 	PaymentTerm   *PaymentTerm     `gorm:"foreignKey:PaymentTermID" json:"payment_term"`
 	ValidUntil    *time.Time       `gorm:"column:valid_until" json:"valid_until"`
 	Commision     float64          `gorm:"column:commision" json:"commision"`
+	CommisionValue float64         `gorm:"column:commision_value;default:0" json:"commision_value"`
 	Notes         *string         `gorm:"column:notes;type:text" json:"notes"`
 	Status        int              `gorm:"column:status;not null;default:1" json:"status"`
 	StatusInfo    *QuotationStatus `gorm:"foreignKey:Status" json:"status_info"`
@@ -395,6 +396,7 @@ type QuotationMaster struct {
 	PaymentTermID *uint      `gorm:"column:payment_term" json:"payment_term_id"`
 	ValidUntil    *time.Time `gorm:"column:valid_until" json:"valid_until"`
 	Commision     float64   `gorm:"column:commision" json:"commision"`
+	CommisionValue float64   `gorm:"column:commision_value;default:0" json:"commision_value"`
 	Notes        *string    `gorm:"column:notes;type:text" json:"notes"`
 	UserCreated   *uint      `gorm:"column:user_created" json:"user_created"`
 	SalesID       *uint      `gorm:"column:sales_id" json:"sales_id"`

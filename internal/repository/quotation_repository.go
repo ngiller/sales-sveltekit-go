@@ -181,6 +181,7 @@ func (r *QuotationRepository) FindByID(id string) (*models.Quotation, error) {
 		item.ValidUntil = nil
 	}
 	item.Commision = defaultMaster.Commision
+	item.CommisionValue = defaultMaster.CommisionValue
 	item.Notes = defaultMaster.Notes
 	item.LevelID = defaultMaster.LevelID
 	item.PriorityID = defaultMaster.PriorityID
@@ -297,18 +298,20 @@ func (r *QuotationRepository) Update(q *models.Quotation, details []models.Quota
 
 			// Sync parent quotation table with the new default revision's totals
 			updates := map[string]interface{}{
-				"total":        master.Total,
-				"disc":         master.Disc,
-				"disc_value":   master.DiscValue,
-				"tax":          master.Tax,
-				"tax_value":    master.TaxValue,
-				"pph":          master.PPh,
-				"pph_value":    master.PPhValue,
-				"grand_total":  master.GrandTotal,
-				"hpp_total":    master.HppTotal,
-				"profit":       master.Profit,
-				"profit_value": master.ProfitValue,
-				"notes":        master.Notes,
+				"total":           master.Total,
+				"disc":            master.Disc,
+				"disc_value":      master.DiscValue,
+				"tax":             master.Tax,
+				"tax_value":       master.TaxValue,
+				"pph":             master.PPh,
+				"pph_value":       master.PPhValue,
+				"grand_total":     master.GrandTotal,
+				"hpp_total":       master.HppTotal,
+				"profit":          master.Profit,
+				"profit_value":    master.ProfitValue,
+				"commision":       master.Commision,
+				"commision_value": master.CommisionValue,
+				"notes":           master.Notes,
 			}
 
 			if err := tx.Model(&models.Quotation{}).Where("id = ?", master.ID).Updates(updates).Error; err != nil {
@@ -427,14 +430,15 @@ func (r *QuotationRepository) CreateRevision(oldID string, newID string, newQuot
 			PPhValue:     newQ.PPhValue,
 			GrandTotal:   newQ.GrandTotal,
 			HppTotal:     newQ.HppTotal,
-			Profit:       profitVal,
-			ProfitValue:  newQ.ProfitValue,
-			PaymentTermID: newQ.PaymentTermID,
-			ValidUntil:  newQ.ValidUntil,
-			Commision:   newQ.Commision,
-			Notes:       newQ.Notes,
-			SalesID:      newQ.SalesID,
-			UserCreated:  &userID,
+			Profit:         profitVal,
+			ProfitValue:    newQ.ProfitValue,
+			PaymentTermID:  newQ.PaymentTermID,
+			ValidUntil:     newQ.ValidUntil,
+			Commision:      newQ.Commision,
+			CommisionValue: newQ.CommisionValue,
+			Notes:          newQ.Notes,
+			SalesID:        newQ.SalesID,
+			UserCreated:    &userID,
 			UserUpdate: &userID,
 			CreatedAt:   time.Now(),
 			UpdatedAt:   time.Now(),
@@ -521,18 +525,20 @@ func (r *QuotationRepository) SetDefault(id string, revID int) error {
 		}
 
 		updates := map[string]interface{}{
-			"total":        master.Total,
-			"disc":         master.Disc,
-			"disc_value":   master.DiscValue,
-			"tax":          master.Tax,
-			"tax_value":    master.TaxValue,
-			"pph":          master.PPh,
-			"pph_value":    master.PPhValue,
-			"grand_total":  master.GrandTotal,
-			"hpp_total":    master.HppTotal,
-			"profit":       master.Profit,
-			"profit_value": master.ProfitValue,
-			"notes":        master.Notes,
+			"total":           master.Total,
+			"disc":            master.Disc,
+			"disc_value":      master.DiscValue,
+			"tax":             master.Tax,
+			"tax_value":       master.TaxValue,
+			"pph":             master.PPh,
+			"pph_value":       master.PPhValue,
+			"grand_total":     master.GrandTotal,
+			"hpp_total":       master.HppTotal,
+			"profit":          master.Profit,
+			"profit_value":    master.ProfitValue,
+			"commision":       master.Commision,
+			"commision_value": master.CommisionValue,
+			"notes":           master.Notes,
 		}
 
 		if err := tx.Model(&models.Quotation{}).Where("id = ?", id).Updates(updates).Error; err != nil {
