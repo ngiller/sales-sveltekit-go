@@ -409,10 +409,9 @@ func (h *QuotationHandler) Create(c *fiber.Ctx) error {
 		input.Status = 1
 		quotation.Status = 1
 	}
-	if input.ProgressID == 0 {
-		input.ProgressID = 2
-		quotation.ProgressID = 2
-	}
+	// ProgressID is always forced to 2 (Lead) on creation
+	input.ProgressID = 2
+	quotation.ProgressID = 2
 
 	subdetails := []models.QuotationSubdetail{}
 	for _, d := range input.Details {
@@ -564,7 +563,8 @@ func (h *QuotationHandler) Update(c *fiber.Ctx) error {
 	existing.Commision = input.Commision
 	existing.Notes = input.Notes
 	existing.Status = input.Status
-	existing.ProgressID = input.ProgressID
+	// ProgressID is locked and can only be updated via follow up
+	// existing.ProgressID = input.ProgressID
 	existing.FollowupBy = input.FollowupBy
 	existing.FollowupDate = parseDate(input.FollowupDate)
 	existing.NextFollowup = parseDate(input.NextFollowup)
