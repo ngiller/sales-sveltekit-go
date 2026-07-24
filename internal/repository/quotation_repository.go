@@ -386,6 +386,19 @@ func (r *QuotationRepository) CreateRevision(oldID string, newID string, newQuot
 	newQ.CreatedAt = time.Now()
 	newQ.UpdatedAt = time.Now()
 
+	// Reset to default new quotation values (Status: On Progress (1), Progress: Lead (2))
+	newQ.Status = 1
+	newQ.ProgressID = 2
+	newQ.Notif = false
+	newQ.PoNo = nil
+	newQ.PoDate = nil
+	newQ.PoFile = nil
+	newQ.PoAssignTo = nil
+	newQ.FollowupBy = nil
+	newQ.FollowupDate = nil
+	nextFollowupDate := newDate.AddDate(0, 0, 3)
+	newQ.NextFollowup = &nextFollowupDate
+
 	if newQ.Subject != nil {
 		newQ.Subject = strPtr(subjectPrefix + *newQ.Subject)
 	}

@@ -132,6 +132,7 @@ func main() {
 	quotationStatusRepo := repository.NewQuotationStatusRepository(db)
 	quotationRepo := repository.NewQuotationRepository(db)
 	quotationFollowupRepo := repository.NewQuotationFollowupRepository(db)
+	dailyActivityRepo := repository.NewDailyActivityRepository(db)
 
 	// Dual database for stock
 	stockDb := config.InitStockDB()
@@ -157,6 +158,7 @@ func main() {
 	unitHandler := handlers.NewUnitHandler(unitRepo)
 	quotationHandler := handlers.NewQuotationHandler(quotationRepo)
 	quotationFollowupHandler := handlers.NewQuotationFollowupHandler(quotationFollowupRepo)
+	dailyActivityHandler := handlers.NewDailyActivityHandler(dailyActivityRepo)
 	stockHandler := handlers.NewStockHandler(stockRepo)
 	productCategoryHandler := handlers.NewProductCategoryHandler(productCategoryRepo)
 	brandHandler := handlers.NewBrandHandler(brandRepo)
@@ -183,7 +185,7 @@ func main() {
 	kanbanCommentHandler := handlers.NewKanbanCommentHandler(kanbanCommentRepo)
 
 	// Setup all routing
-	routes.SetupRoutes(app, db, authHandler, deptHandler, roleHandler, userHandler, custCatHandler, custHandler, custContactHandler, policyHandler, menuAccessHandler, paymentTermHandler, projectLevelHandler, projectPriorityHandler, quotationProgressHandler, quotationStatusHandler, unitHandler, quotationHandler, quotationFollowupHandler, settingHandler, stockHandler, productCategoryHandler, brandHandler, kanbanBoardHandler, kanbanListHandler, kanbanCardHandler, kanbanLabelHandler, kanbanChecklistHandler, kanbanAttachmentHandler, kanbanCommentHandler)
+	routes.SetupRoutes(app, db, authHandler, deptHandler, roleHandler, userHandler, custCatHandler, custHandler, custContactHandler, policyHandler, menuAccessHandler, paymentTermHandler, projectLevelHandler, projectPriorityHandler, quotationProgressHandler, quotationStatusHandler, unitHandler, quotationHandler, quotationFollowupHandler, settingHandler, stockHandler, productCategoryHandler, brandHandler, kanbanBoardHandler, kanbanListHandler, kanbanCardHandler, kanbanLabelHandler, kanbanChecklistHandler, kanbanAttachmentHandler, kanbanCommentHandler, dailyActivityHandler)
 
 	port := os.Getenv("PORT")
 	if port == "" {

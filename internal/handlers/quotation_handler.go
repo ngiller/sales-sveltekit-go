@@ -505,6 +505,9 @@ func (h *QuotationHandler) Create(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to create quotation: "+err.Error())
 	}
 
+	// Trigger PO email notification check
+	go utils.CheckAndSendPOEmail(h.repo.GetDB(), quotation.ID)
+
 	return utils.SuccessResponse(c, fiber.StatusCreated, fiber.Map{
 		"quotation":    quotation,
 		"quotation_id": quotationID,
@@ -675,6 +678,9 @@ func (h *QuotationHandler) Update(c *fiber.Ctx) error {
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to update quotation: "+err.Error())
 	}
+
+	// Trigger PO email notification check
+	go utils.CheckAndSendPOEmail(h.repo.GetDB(), existing.ID)
 
 	return utils.SuccessResponse(c, fiber.StatusOK, existing)
 }

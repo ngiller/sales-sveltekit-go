@@ -95,6 +95,9 @@ func (h *QuotationFollowupHandler) Create(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to create follow-up: "+err.Error())
 	}
 
+	// Trigger PO email notification check
+	go utils.CheckAndSendPOEmail(h.repo.GetDB(), item.ID)
+
 	return utils.SuccessResponse(c, fiber.StatusCreated, item)
 }
 
@@ -127,6 +130,9 @@ func (h *QuotationFollowupHandler) Update(c *fiber.Ctx) error {
 	if err := h.repo.Update(item); err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to update follow-up: "+err.Error())
 	}
+
+	// Trigger PO email notification check
+	go utils.CheckAndSendPOEmail(h.repo.GetDB(), item.ID)
 
 	return utils.SuccessResponse(c, fiber.StatusOK, item)
 }
@@ -179,6 +185,9 @@ func (h *QuotationFollowupHandler) Delete(c *fiber.Ctx) error {
 			h.repo.GetDB().Model(&models.Quotation{}).Where("id = ?", quotationID).Updates(updates)
 		}
 	}
+
+	// Trigger PO email notification check (resets flag if status becomes non-PO)
+	go utils.CheckAndSendPOEmail(h.repo.GetDB(), quotationID)
 
 	return utils.SuccessResponse(c, fiber.StatusOK, fiber.Map{"message": "Follow-up successfully deleted"})
 }

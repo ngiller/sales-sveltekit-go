@@ -468,3 +468,27 @@ type Setting struct {
 func (Setting) TableName() string {
 	return "setting"
 }
+
+type DailyActivity struct {
+	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID       uint      `gorm:"column:user_id;not null" json:"user_id"`
+	User         *User     `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	ActivityDate time.Time `gorm:"column:activity_date;type:date;not null" json:"activity_date"`
+	Activity     string    `gorm:"column:activity;type:text;not null" json:"activity"`
+	Process      *string   `gorm:"column:process;type:text" json:"process"`
+	Issues       *string   `gorm:"column:issues;type:text" json:"issues"`
+	Result       *string   `gorm:"column:result;type:text" json:"result"`
+	Notes        *string   `gorm:"column:notes;type:text" json:"notes"`
+	PropertyID   *uint     `gorm:"column:property_id" json:"property_id"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+
+	// Virtual fields for frontend
+	Hari         string    `gorm:"-" json:"hari"`
+	UserName     string    `gorm:"->;column:user_name" json:"user_name,omitempty"`
+}
+
+func (DailyActivity) TableName() string {
+	return "daily_activities"
+}
+

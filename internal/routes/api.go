@@ -13,7 +13,7 @@ import (
 )
 
 // SetupRoutes registers all API endpoints for the application
-func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler, deptHandler *handlers.DepartementHandler, roleHandler *handlers.RoleHandler, userHandler *handlers.UserHandler, customerCategoryHandler *handlers.CustomerCategoryHandler, customerHandler *handlers.CustomerHandler, customerContactHandler *handlers.CustomerContactHandler, policyHandler *handlers.PolicyHandler, menuAccessHandler *handlers.MenuAccessHandler, paymentTermHandler *handlers.PaymentTermHandler, projectLevelHandler *handlers.ProjectLevelHandler, projectPriorityHandler *handlers.ProjectPriorityHandler, quotationProgressHandler *handlers.QuotationProgressHandler, quotationStatusHandler *handlers.QuotationStatusHandler, unitHandler *handlers.UnitHandler, quotationHandler *handlers.QuotationHandler, quotationFollowupHandler *handlers.QuotationFollowupHandler, settingHandler *handlers.SettingHandler, stockHandler *handlers.StockHandler, productCategoryHandler *handlers.ProductCategoryHandler, brandHandler *handlers.BrandHandler, kanbanBoardHandler *handlers.KanbanBoardHandler, kanbanListHandler *handlers.KanbanListHandler, kanbanCardHandler *handlers.KanbanCardHandler, kanbanLabelHandler *handlers.KanbanLabelHandler, kanbanChecklistHandler *handlers.KanbanChecklistHandler, kanbanAttachmentHandler *handlers.KanbanAttachmentHandler, kanbanCommentHandler *handlers.KanbanCommentHandler) {
+func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler, deptHandler *handlers.DepartementHandler, roleHandler *handlers.RoleHandler, userHandler *handlers.UserHandler, customerCategoryHandler *handlers.CustomerCategoryHandler, customerHandler *handlers.CustomerHandler, customerContactHandler *handlers.CustomerContactHandler, policyHandler *handlers.PolicyHandler, menuAccessHandler *handlers.MenuAccessHandler, paymentTermHandler *handlers.PaymentTermHandler, projectLevelHandler *handlers.ProjectLevelHandler, projectPriorityHandler *handlers.ProjectPriorityHandler, quotationProgressHandler *handlers.QuotationProgressHandler, quotationStatusHandler *handlers.QuotationStatusHandler, unitHandler *handlers.UnitHandler, quotationHandler *handlers.QuotationHandler, quotationFollowupHandler *handlers.QuotationFollowupHandler, settingHandler *handlers.SettingHandler, stockHandler *handlers.StockHandler, productCategoryHandler *handlers.ProductCategoryHandler, brandHandler *handlers.BrandHandler, kanbanBoardHandler *handlers.KanbanBoardHandler, kanbanListHandler *handlers.KanbanListHandler, kanbanCardHandler *handlers.KanbanCardHandler, kanbanLabelHandler *handlers.KanbanLabelHandler, kanbanChecklistHandler *handlers.KanbanChecklistHandler, kanbanAttachmentHandler *handlers.KanbanAttachmentHandler, kanbanCommentHandler *handlers.KanbanCommentHandler, dailyActivityHandler *handlers.DailyActivityHandler) {
 
 	// API Group
 	api := app.Group("/api")
@@ -277,6 +277,14 @@ func SetupRoutes(app *fiber.App, db *gorm.DB, authHandler *handlers.AuthHandler,
 	kanbanCommentGrp.Post("/", kanbanCommentHandler.Create)
 	kanbanCommentGrp.Put("/:id", kanbanCommentHandler.Update)
 	kanbanCommentGrp.Delete("/:id", kanbanCommentHandler.Delete)
+
+	// Daily Activities Routes
+	dailyActivitiesGrp := api.Group("/daily-activities", middleware.AuthMiddleware())
+	dailyActivitiesGrp.Get("/", middleware.RequirePolicy(db, "read"), dailyActivityHandler.FindAll)
+	dailyActivitiesGrp.Get("/:id", middleware.RequirePolicy(db, "read"), dailyActivityHandler.FindByID)
+	dailyActivitiesGrp.Post("/", middleware.RequirePolicy(db, "create"), dailyActivityHandler.Create)
+	dailyActivitiesGrp.Put("/:id", middleware.RequirePolicy(db, "update"), dailyActivityHandler.Update)
+	dailyActivitiesGrp.Delete("/:id", middleware.RequirePolicy(db, "delete"), dailyActivityHandler.Delete)
 
 	// Setting Routes
 	api.Get("/settings/code/:code", middleware.AuthMiddleware(), settingHandler.GetByCode)
