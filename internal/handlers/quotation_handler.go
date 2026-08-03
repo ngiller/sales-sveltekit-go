@@ -1032,7 +1032,7 @@ func (h *QuotationHandler) topCustomersByType(c *fiber.Ctx, fromDate, toDate str
 		JOIN quotation_master m ON m.id COLLATE utf8mb4_general_ci = q.id AND m.default_quot = 1
 		JOIN customer c ON c.id = q.customer_id
 		WHERE q.quotation_type = ?
-			AND q.status = 3
+			AND q.status = 3 AND q.progress = 9
 			AND q.quotation_date BETWEEN ? AND ?
 		GROUP BY c.id, c.name
 		ORDER BY grand_total DESC
@@ -1438,7 +1438,7 @@ func (h *QuotationHandler) buildSalesSummaryQuery(fromDate, toDate, search, quot
 				ELSE ROUND(COALESCE(SUM(q.profit_value),0) / COALESCE(SUM(q.grand_total),0) * 100, 2)
 			END AS margin_percent`).
 		Joins("JOIN customer c ON c.id = q.customer_id").
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate).
 		Group("c.id, c.name")
 
@@ -1582,7 +1582,7 @@ func (h *QuotationHandler) buildSalesSummaryBySalesPersonQuery(fromDate, toDate,
 				ELSE ROUND(COALESCE(SUM(q.profit_value),0) / COALESCE(SUM(q.grand_total),0) * 100, 2)
 			END AS margin_percent`).
 		Joins("LEFT JOIN users u ON u.id = q.sales_id").
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate).
 		Group("u.id, u.name")
 
@@ -1758,7 +1758,7 @@ func (h *QuotationHandler) buildSalesDetailQuery(fromDate, toDate, search, sales
 			END AS margin_percent`).
 		Joins("LEFT JOIN users u ON u.id = q.sales_id").
 		Joins("LEFT JOIN customer c ON c.id = q.customer_id").
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate)
 
 	if search != "" {
@@ -1928,7 +1928,7 @@ func (h *QuotationHandler) buildSalesDetailBySalesPersonQuery(fromDate, toDate, 
 				ELSE ROUND(COALESCE(q.profit_value,0) / COALESCE(q.grand_total,0) * 100, 2)
 			END AS margin_percent`).
 		Joins("LEFT JOIN customer c ON c.id = q.customer_id").
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate)
 
 	if search != "" {
@@ -2101,7 +2101,7 @@ func (h *QuotationHandler) buildSalesItemByCustomerQuery(fromDate, toDate, searc
 		Joins("JOIN quotation q ON q.id COLLATE utf8mb4_general_ci = qd.id").
 		Joins("JOIN quotation_master qm ON qm.id COLLATE utf8mb4_general_ci = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
 		Joins("LEFT JOIN users u ON u.id = q.sales_id").
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate).
 		Group("qd.part_no, qd.descriptions")
 
@@ -2246,7 +2246,7 @@ func (h *QuotationHandler) buildSalesItemBySalesPersonQuery(fromDate, toDate, se
 		Joins("JOIN quotation q ON q.id COLLATE utf8mb4_general_ci = qd.id").
 		Joins("JOIN quotation_master qm ON qm.id COLLATE utf8mb4_general_ci = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
 		Joins("LEFT JOIN users u ON u.id = q.sales_id").
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate).
 		Group("qd.part_no, qd.descriptions")
 
@@ -2417,7 +2417,7 @@ func (h *QuotationHandler) SalesChartsByCustomer(c *fiber.Ctx) error {
 	if err := h.repo.GetDB().Table("quotation").
 		Select(`DATE_FORMAT(quotation_date, '%Y-%m') AS month, COALESCE(SUM(grand_total),0) AS grand_total`).
 		Where("customer_id = ?", customerID).
-		Where("status = 3").
+		Where("status = 3 AND progress = 9").
 		Where("YEAR(quotation_date) = ?", year).
 		Group("month").
 		Order("month ASC").
@@ -2431,7 +2431,7 @@ func (h *QuotationHandler) SalesChartsByCustomer(c *fiber.Ctx) error {
 		Joins("JOIN quotation q ON q.id COLLATE utf8mb4_general_ci = qd.id").
 		Joins("JOIN quotation_master qm ON qm.id COLLATE utf8mb4_general_ci = qd.id AND qm.rev_id = qd.rev_id AND qm.default_quot = true").
 		Where("q.customer_id = ?", customerID).
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("YEAR(q.quotation_date) = ?", year).
 		Group("qd.part_no, qd.descriptions").
 		Order("total_sales DESC").
@@ -2460,7 +2460,8 @@ func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
 	if salesID == "" {
 		salesID = c.Query("user_created")
 	}
-	year := c.Query("year")
+	fromDate := c.Query("from_date")
+	toDate := c.Query("to_date")
 
 	users := h.fetchReportSalesPersons(userID)
 
@@ -2472,8 +2473,10 @@ func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
 			"users":             users,
 		})
 	}
-	if year == "" {
-		year = strconv.Itoa(time.Now().Year())
+	if fromDate == "" || toDate == "" {
+		currentYear := time.Now().Year()
+		fromDate = fmt.Sprintf("%d-01-01", currentYear)
+		toDate = fmt.Sprintf("%d-12-31", currentYear)
 	}
 
 	type statusFilter struct {
@@ -2498,14 +2501,17 @@ func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
 	for _, sf := range statuses {
 		q := h.repo.GetDB().Table("quotation").
 			Select(`DATE_FORMAT(quotation_date, '%Y-%m') AS month, COALESCE(SUM(grand_total),0) AS grand_total`).
-			Where("user_created = ?", salesID).
-			Where("YEAR(quotation_date) = ?", year).
+			Where("sales_id = ?", salesID).
+			Where("quotation_date BETWEEN ? AND ?", fromDate, toDate).
 			Group("month").
 			Order("month ASC")
 		if sf.Name == "All Quotation" {
 			// All statuses
 		} else if id, ok := statusIDs[sf.Name]; ok {
 			q = q.Where("status = ?", id)
+			if id == 3 {
+				q = q.Where("progress = 9")
+			}
 		}
 		var rows []SalesChartMonthlySeriesItem
 		if err := q.Find(&rows).Error; err != nil {
@@ -2521,9 +2527,9 @@ func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
 	if err := h.repo.GetDB().Table("quotation q").
 		Select(`c.name AS customer_name, COALESCE(SUM(q.grand_total),0) AS grand_total, COALESCE(SUM(q.hpp_total),0) AS hpp_total, COALESCE(SUM(q.grand_total - q.hpp_total),0) AS profit_value, CASE WHEN SUM(q.grand_total) > 0 THEN ROUND((SUM(q.grand_total - q.hpp_total) / SUM(q.grand_total)) * 100, 2) ELSE 0 END AS margin_percent`).
 		Joins("JOIN customer c ON c.id = q.customer_id").
-		Where("q.user_created = ?", salesID).
-		Where("q.status = 3").
-		Where("YEAR(q.quotation_date) = ?", year).
+		Where("q.sales_id = ?", salesID).
+		Where("q.status = 3 AND q.progress = 9").
+		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate).
 		Group("c.id, c.name").
 		Order("grand_total DESC").
 		Find(&items).Error; err != nil {
@@ -2534,9 +2540,9 @@ func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
 	if err := h.repo.GetDB().Table("quotation q").
 		Select(`c.name AS customer_name, COALESCE(SUM(q.grand_total),0) AS grand_total, COALESCE(SUM(q.hpp_total),0) AS hpp_total, COALESCE(SUM(q.grand_total - q.hpp_total),0) AS profit_value, CASE WHEN SUM(q.grand_total) > 0 THEN ROUND((SUM(q.grand_total - q.hpp_total) / SUM(q.grand_total)) * 100, 2) ELSE 0 END AS margin_percent`).
 		Joins("JOIN customer c ON c.id = q.customer_id").
-		Where("q.user_created = ?", salesID).
+		Where("q.sales_id = ?", salesID).
 		Where("q.status = 1").
-		Where("YEAR(q.quotation_date) = ?", year).
+		Where("q.quotation_date BETWEEN ? AND ?", fromDate, toDate).
 		Group("c.id, c.name").
 		Order("grand_total DESC").
 		Find(&onProgressItems).Error; err != nil {
@@ -2618,7 +2624,7 @@ func (h *QuotationHandler) ChartPOAnalysis(c *fiber.Ctx) error {
 				ELSE 'Unknown'
 			END AS type_name,
 			COALESCE(SUM(q.grand_total), 0) AS grand_total`).
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("YEAR(q.quotation_date) = ?", year).
 		Where("q.quotation_date IS NOT NULL").
 		Group("q.quotation_type").
@@ -2635,7 +2641,7 @@ func (h *QuotationHandler) ChartPOAnalysis(c *fiber.Ctx) error {
 		Select(`COALESCE(u.name, 'Unknown') AS sales_name,
 			COALESCE(SUM(q.grand_total), 0) AS grand_total`).
 		Joins("LEFT JOIN users u ON u.id = q.sales_id").
-		Where("q.status = 3").
+		Where("q.status = 3 AND q.progress = 9").
 		Where("YEAR(q.quotation_date) = ?", year).
 		Where("q.quotation_date IS NOT NULL").
 		Group("q.sales_id, u.name").
