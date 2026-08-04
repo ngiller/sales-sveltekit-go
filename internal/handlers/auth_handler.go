@@ -281,7 +281,18 @@ func (h *AuthHandler) ChangePassword(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid ID format")
 	}
 
-	if uint(targetUserID) != loggedInUserID {
+	isAdmin := false
+	if userGroupID, ok := c.Locals("user_group_id").(uint); ok && userGroupID == 1 {
+		isAdmin = true
+	} else {
+		// Fallback: check database in case claims did not have group ID or it was outdated
+		var currentUser models.User
+		if err := h.userRepo.GetDB().Select("user_group_id").First(&currentUser, loggedInUserID).Error; err == nil {
+			isAdmin = currentUser.UserGroupID != nil && *currentUser.UserGroupID == 1
+		}
+	}
+
+	if uint(targetUserID) != loggedInUserID && !isAdmin {
 		return utils.ErrorResponse(c, fiber.StatusForbidden, "You can only change your own password")
 	}
 
