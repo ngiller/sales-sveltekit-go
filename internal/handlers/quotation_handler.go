@@ -298,7 +298,10 @@ func parseDate(s *string) *time.Time {
 	}
 	t, err := time.Parse("2006-01-02", *s)
 	if err != nil {
-		return nil
+		t, err = time.Parse(time.RFC3339, *s)
+		if err != nil {
+			return nil
+		}
 	}
 	// MySQL DATE range is 1000-01-01 to 9999-12-31
 	if t.Year() < 1000 || t.Year() > 9999 {

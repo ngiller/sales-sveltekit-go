@@ -102,13 +102,42 @@ func (h *DailyActivityHandler) FindByID(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, item)
 }
 
+type DailyActivityInput struct {
+	ID           uint    `json:"id"`
+	UserID       uint    `json:"user_id"`
+	ActivityDate *string `json:"activity_date"`
+	Activity     string  `json:"activity"`
+	Process      *string `json:"process"`
+	Issues       *string `json:"issues"`
+	Result       *string `json:"result"`
+	Notes        *string `json:"notes"`
+	PropertyID   *uint   `json:"property_id"`
+}
+
 func (h *DailyActivityHandler) Create(c *fiber.Ctx) error {
 	currentUserID := c.Locals("user_id").(uint)
 
-	var item models.DailyActivity
-	if err := c.BodyParser(&item); err != nil {
-		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	var input DailyActivityInput
+	if err := c.BodyParser(&input); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body: "+err.Error())
 	}
+
+	var item models.DailyActivity
+	item.ID = input.ID
+	if input.ActivityDate == nil || *input.ActivityDate == "" {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Activity date is required")
+	}
+	t := parseDate(input.ActivityDate)
+	if t == nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid activity date format")
+	}
+	item.ActivityDate = *t
+	item.Activity = input.Activity
+	item.Process = input.Process
+	item.Issues = input.Issues
+	item.Result = input.Result
+	item.Notes = input.Notes
+	item.PropertyID = input.PropertyID
 
 	// Force current user ID (Standard users can only record their own activities)
 	// Even admins, when logging, will log under their own user ID.
@@ -146,9 +175,9 @@ func (h *DailyActivityHandler) Update(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid ID format")
 	}
 
-	var reqItem models.DailyActivity
-	if err := c.BodyParser(&reqItem); err != nil {
-		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	var input DailyActivityInput
+	if err := c.BodyParser(&input); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body: "+err.Error())
 	}
 
 	item, err := h.repo.FindByID(uint(id))
@@ -162,14 +191,21 @@ func (h *DailyActivityHandler) Update(c *fiber.Ctx) error {
 	}
 
 	// Update fields
-	item.ActivityDate = reqItem.ActivityDate
-	item.Activity = reqItem.Activity
-	item.Process = reqItem.Process
-	item.Issues = reqItem.Issues
-	item.Result = reqItem.Result
-	item.Notes = reqItem.Notes
-	if reqItem.PropertyID != nil {
-		item.PropertyID = reqItem.PropertyID
+	if input.ActivityDate != nil {
+		t := parseDate(input.ActivityDate)
+		if t != nil {
+			item.ActivityDate = *t
+		} else {
+			return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid activity date format")
+		}
+	}
+	item.Activity = input.Activity
+	item.Process = input.Process
+	item.Issues = input.Issues
+	item.Result = input.Result
+	item.Notes = input.Notes
+	if input.PropertyID != nil {
+		item.PropertyID = input.PropertyID
 	}
 
 	err = h.repo.GetDB().Transaction(func(tx *gorm.DB) error {

@@ -57,11 +57,42 @@ func (h *QuotationFollowupHandler) FindByID(c *fiber.Ctx) error {
 	return utils.SuccessResponse(c, fiber.StatusOK, item)
 }
 
+type QuotationFollowupInput struct {
+	ID           string  `json:"line_id"`
+	LineID       int     `json:"id"`
+	PropertyID   int     `json:"property_id"`
+	RevID        int     `json:"rev_id"`
+	Status       *uint   `json:"status"`
+	Progress     *uint   `json:"progress"`
+	FollowupDate *string `json:"followup_date"`
+	FollowupBy   *uint   `json:"followup_by"`
+	NextFollowup *string `json:"next_followup"`
+	Notes        *string `json:"notes"`
+	PoNo         *string `json:"po_no"`
+	PoDate       *string `json:"po_date"`
+	PoFile       *string `json:"po_file"`
+}
+
 func (h *QuotationFollowupHandler) Create(c *fiber.Ctx) error {
-	var item models.QuotationFollowup
-	if err := c.BodyParser(&item); err != nil {
+	var input QuotationFollowupInput
+	if err := c.BodyParser(&input); err != nil {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body: "+err.Error())
 	}
+
+	var item models.QuotationFollowup
+	item.ID = input.ID
+	item.LineID = input.LineID
+	item.PropertyID = input.PropertyID
+	item.RevID = input.RevID
+	item.Status = input.Status
+	item.Progress = input.Progress
+	item.FollowupDate = parseDate(input.FollowupDate)
+	item.FollowupBy = input.FollowupBy
+	item.NextFollowup = parseDate(input.NextFollowup)
+	item.Notes = input.Notes
+	item.PoNo = input.PoNo
+	item.PoDate = parseDate(input.PoDate)
+	item.PoFile = input.PoFile
 
 	// Fetch property_id and default rev_id from Quotation
 	var quot models.Quotation
@@ -108,24 +139,24 @@ func (h *QuotationFollowupHandler) Update(c *fiber.Ctx) error {
 		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid line_id format")
 	}
 
-	var req models.QuotationFollowup
-	if err := c.BodyParser(&req); err != nil {
-		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body")
+	var input QuotationFollowupInput
+	if err := c.BodyParser(&input); err != nil {
+		return utils.ErrorResponse(c, fiber.StatusBadRequest, "Invalid request body: "+err.Error())
 	}
 
-	item, err := h.repo.FindByID(req.ID, lineID)
+	item, err := h.repo.FindByID(input.ID, lineID)
 	if err != nil {
 		return utils.ErrorResponse(c, fiber.StatusNotFound, "Follow-up not found")
 	}
 
-	item.Status = req.Status
-	item.Progress = req.Progress
-	item.FollowupDate = req.FollowupDate
-	item.NextFollowup = req.NextFollowup
-	item.Notes = req.Notes
-	item.PoNo = req.PoNo
-	item.PoDate = req.PoDate
-	item.PoFile = req.PoFile
+	item.Status = input.Status
+	item.Progress = input.Progress
+	item.FollowupDate = parseDate(input.FollowupDate)
+	item.NextFollowup = parseDate(input.NextFollowup)
+	item.Notes = input.Notes
+	item.PoNo = input.PoNo
+	item.PoDate = parseDate(input.PoDate)
+	item.PoFile = input.PoFile
 
 	if err := h.repo.Update(item); err != nil {
 		return utils.ErrorResponse(c, fiber.StatusInternalServerError, "Failed to update follow-up: "+err.Error())
