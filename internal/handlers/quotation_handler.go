@@ -2528,7 +2528,7 @@ func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
 
 	var items []SalesChartsBySalesPersonItem
 	if err := h.repo.GetDB().Table("quotation q").
-		Select(`c.name AS customer_name, COALESCE(SUM(q.grand_total),0) AS grand_total, COALESCE(SUM(q.hpp_total),0) AS hpp_total, COALESCE(SUM(q.grand_total - q.hpp_total),0) AS profit_value, CASE WHEN SUM(q.grand_total) > 0 THEN ROUND((SUM(q.grand_total - q.hpp_total) / SUM(q.grand_total)) * 100, 2) ELSE 0 END AS margin_percent`).
+		Select(`c.name AS customer_name, COALESCE(SUM(q.grand_total),0) AS grand_total, COALESCE(SUM(q.hpp_total),0) AS hpp_total, COALESCE(SUM(q.profit_value),0) AS profit_value, CASE WHEN SUM(q.grand_total) > 0 THEN ROUND((SUM(q.profit_value) / SUM(q.grand_total)) * 100, 2) ELSE 0 END AS margin_percent`).
 		Joins("JOIN customer c ON c.id = q.customer_id").
 		Where("q.sales_id = ?", salesID).
 		Where("q.status = 3 AND q.progress = 9").
@@ -2541,7 +2541,7 @@ func (h *QuotationHandler) SalesChartsBySalesPerson(c *fiber.Ctx) error {
 
 	var onProgressItems []SalesChartsBySalesPersonItem
 	if err := h.repo.GetDB().Table("quotation q").
-		Select(`c.name AS customer_name, COALESCE(SUM(q.grand_total),0) AS grand_total, COALESCE(SUM(q.hpp_total),0) AS hpp_total, COALESCE(SUM(q.grand_total - q.hpp_total),0) AS profit_value, CASE WHEN SUM(q.grand_total) > 0 THEN ROUND((SUM(q.grand_total - q.hpp_total) / SUM(q.grand_total)) * 100, 2) ELSE 0 END AS margin_percent`).
+		Select(`c.name AS customer_name, COALESCE(SUM(q.grand_total),0) AS grand_total, COALESCE(SUM(q.hpp_total),0) AS hpp_total, COALESCE(SUM(q.profit_value),0) AS profit_value, CASE WHEN SUM(q.grand_total) > 0 THEN ROUND((SUM(q.profit_value) / SUM(q.grand_total)) * 100, 2) ELSE 0 END AS margin_percent`).
 		Joins("JOIN customer c ON c.id = q.customer_id").
 		Where("q.sales_id = ?", salesID).
 		Where("q.status = 1").
